@@ -12,6 +12,16 @@ namespace bcparse {
       case TK_REG:           return "register";
       case TK_LOCAL:         return "local";
       case TK_ADDR:          return "address";
+      case TK_TAG:           return "tag";
+      case TK_DIRECTIVE:     return "directive";
+      case TK_NEWLINE:       return "newline";
+      case TK_COMMA:         return "comma";
+      case TK_OPEN_PARENTH:  return "(";
+      case TK_CLOSE_PARENTH: return ")";
+      case TK_OPEN_BRACKET:  return "[";
+      case TK_CLOSE_BRACKET: return "]";
+      case TK_OPEN_BRACE:    return "{";
+      case TK_CLOSE_BRACE:   return "}";
       default:               return "??";
     }
   }

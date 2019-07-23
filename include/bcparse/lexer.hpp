@@ -1,10 +1,14 @@
 #pragma once
 
-#include <bcparse/token.hpp>
 #include <bcparse/source_stream.hpp>
-#include <bcparse/compilation_unit.hpp>
+#include <bcparse/source_location.hpp>
 
 namespace bcparse {
+  class Token;
+  class SourceStream;
+  class TokenStream;
+  class CompilationUnit;
+
   class Lexer {
   public:
     Lexer(const SourceStream &sourceStream,
@@ -17,7 +21,7 @@ namespace bcparse {
     bool skipWhitespace();
     bool hasNext();
     Token nextToken();
-    char readEscapeCode();
+    utf::u32char readEscapeCode();
     Token readStringLiteral();
     Token readNumberLiteral();
     Token readHexNumberLiteral();

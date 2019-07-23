@@ -15,13 +15,23 @@ namespace bcparse {
       TK_OPCODE,
       TK_REG,
       TK_LOCAL,
-      TK_ADDR
+      TK_ADDR,
+      TK_TAG,
+      TK_DIRECTIVE,
+      TK_NEWLINE,
+      TK_COMMA,
+      TK_OPEN_PARENTH,
+      TK_CLOSE_PARENTH,
+      TK_OPEN_BRACKET,
+      TK_CLOSE_BRACKET,
+      TK_OPEN_BRACE,
+      TK_CLOSE_BRACE
     };
 
     static std::string TokenTypeToString(TokenClass tokenClass);    
     static const Token EMPTY;
 
-    Token(TokenClass tokenClass = TK_EMPTY,
+    Token(TokenClass tokenClass,
       const std::string &value,
       const SourceLocation &location);
 

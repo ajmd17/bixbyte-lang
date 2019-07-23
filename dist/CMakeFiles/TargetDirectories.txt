@@ -1,7 +1,0 @@
-/Users/andrew/pie/dist/CMakeFiles/edit_cache.dir
-/Users/andrew/pie/dist/CMakeFiles/rebuild_cache.dir
-/Users/andrew/pie/dist/bcparse/CMakeFiles/edit_cache.dir
-/Users/andrew/pie/dist/bcparse/CMakeFiles/rebuild_cache.dir
-/Users/andrew/pie/dist/bcparse/CMakeFiles/bcparse.dir
-/Users/andrew/pie/dist/vm/CMakeFiles/edit_cache.dir
-/Users/andrew/pie/dist/vm/CMakeFiles/rebuild_cache.dir

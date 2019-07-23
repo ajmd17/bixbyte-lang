@@ -1,5 +1,10 @@
 #include <bcparse/lexer.hpp>
 
+#include <bcparse/token.hpp>
+#include <bcparse/token_stream.hpp>
+#include <bcparse/compilation_unit.hpp>
+#include <bcparse/source_file.hpp>
+
 using utf::u32char;
 
 namespace bcparse {

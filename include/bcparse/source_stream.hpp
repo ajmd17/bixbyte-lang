@@ -3,10 +3,10 @@
 #include <cstddef>
 
 #include <utf/utf8.hpp>
-#include <bcparse/source_file.hpp>
-
 
 namespace bcparse {
+  class SourceFile;
+
   class SourceStream {
   public:
       SourceStream(SourceFile *file);
@@ -14,7 +14,7 @@ namespace bcparse {
 
       inline SourceFile *getFile() const { return m_file; }
       inline size_t getPosition() const { return m_position; }
-      inline bool hasNext() const { return m_position < m_file->getSize(); }
+      bool hasNext() const;
       utf::u32char peek() const;
       utf::u32char next();
       utf::u32char next(int &posChange);
