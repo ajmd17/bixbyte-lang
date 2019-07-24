@@ -50,6 +50,10 @@ typedef struct {
   metadata_t metadata;
 } value_t;
 
+void value_destroy(value_t *value) {
+  // @TODO 
+}
+
 VALUE_TYPE value_getType(value_t *value) {
   // type is stored in first 8 bits of metadata
   return (VALUE_TYPE)(value->metadata & 0xFF);
@@ -73,7 +77,9 @@ typedef struct {
   storage_t storage[4];
 } datatable_t;
 
-void datatable_init(datatable_t *dt) {
+datatable_t *datatable_new() {
+  datatable_t *dt = malloc(sizeof(datatable_t));
+
   dt->storage[0].data = NULL;
   dt->storage[0].len = 0;
 
@@ -88,6 +94,22 @@ void datatable_init(datatable_t *dt) {
   dt->storage[AT_REG].data = malloc(sizeof(value_t) * NUM_REGISTERS);
   memset(dt->storage[AT_REG].data, 0, sizeof(value_t) * NUM_REGISTERS);
   dt->storage[AT_REG].len = 0;
+
+  return dt;
+}
+
+void datatable_destroy(datatable_t *dt) {
+  int i;
+
+  for (i = 0; i < 4; i++) {
+    while (dt->storage[i].len) {
+      value_destroy(&dt->storage[i].data[--dt->storage[i].len]);
+    }
+
+    free(dt->storage[i].data);
+  }
+  
+  free(dt);
 }
 
 value_t *datatable_getValue(datatable_t *dt, loc_28_t loc, archtype_t at) {
@@ -108,6 +130,10 @@ int main() {
   loc_28_t loc;
   archtype_t at;
   obj_loc_parse(o, &loc, &at);
+  
+  datatable_t *dt = datatable_new();
+  
+  datatable_destroy(dt);
 
   
 
