@@ -15,12 +15,12 @@
 }
 
 @macro function { // <- body not lexed/parsed until 'invoked'. '#{}' preprocessed. think of everything in body as a string.
-  jmp _#{id}_end
+  jmp _#{id}_#{_0}end
   #{_0}:
     push_addr
     #{body}
     @return
-  _#{id}_end:
+  _#{id}_#{_0}_end:
 }
 
 @bind _System_C_puts // <-- currently stored in $d[0] -- first in data table. $d[0] is tagged as :_System_C_puts
@@ -31,13 +31,13 @@
 }
 /*
 ==>
-  jmp _12345123_fn_end
+  jmp _12345123_print_end
   print:
     native_call $d[0]
     load_local $l[-1] $r[1]
     pop
     jmp $r[1]
-  _12345123_fn_end:
+  _12345123_print_end:
 */
 
 // ==================================
