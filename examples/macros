@@ -26,8 +26,8 @@
 @bind _System_C_puts // <-- currently stored in $d[0] -- first in data table. $d[0] is tagged as :_System_C_puts
 
 @function print {
-  load_data #{:_System_C_puts}
-  native_call #{:_System_C_puts}
+  load_data #{:_System_C_puts} $r[0]
+  native_call $r[0]
 }
 /*
 ==>
