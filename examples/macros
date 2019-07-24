@@ -1,6 +1,6 @@
 @macro load_str {
-  @data #{_0}
-  load_data $d[-1] #{_1}
+  @data _data_#{id} #{_0}
+  load_data #{:_data_#{id}} #{_1}
 }
 
 @macro call {
