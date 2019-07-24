@@ -1,6 +1,6 @@
 @macro load_str {
   @data #{_0}
-  load_data $d1 #{_1}
+  load_data $d[-1] #{_1}
 }
 
 @macro call {
@@ -9,9 +9,9 @@
 }
 
 @macro return {
-  load_local $l1 $r1
+  load_local $l[-1] $r[1]
   pop
-  jmp $r1
+  jmp $r[1]
 }
 
 @macro function { // <- body not lexed/parsed until 'invoked'. '#{}' preprocessed. think of everything in body as a string.
@@ -23,31 +23,33 @@
   _#{id}_end:
 }
 
+@bind _System_C_puts // <-- currently stored in $d[0] -- first in data table. $d[0] is tagged as :_System_C_puts
+
 @function print {
-  native_call _System_C_puts
+  native_call #{:_System_C_puts}
 }
 /*
 ==>
   jmp _12345123_fn_end
   print:
-    native_call _System_C_puts
-    load_local $l1 $r1
+    native_call $d[0]
+    load_local $l[-1] $r[1]
     pop
-    jmp $r1
+    jmp $r[1]
   _12345123_fn_end:
 */
 
 // ==================================
 
-@load_str "hello world" $r0
-push $r0
+@load_str "hello world" $r[0]
+push $r[0]
 @call print
 pop
 
 /*
 ==>
-  load_str "hello world" $r0
-  push $r0
+  load_str "hello world" $r[0]
+  push $r[0]
   push_addr
   jmp print
   pop
