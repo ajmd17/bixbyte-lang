@@ -1,6 +1,6 @@
 @macro load_str {
-  @data _data_#{id} #{_0}
-  load_data #{:_data_#{id}} #{_1}
+  @data #{_0}
+  load_data #{dc} #{_1} // <- `dc` = data counter. index of stored static data at the current point in compilation
 }
 
 @macro call {
@@ -26,6 +26,7 @@
 @bind _System_C_puts // <-- currently stored in $d[0] -- first in data table. $d[0] is tagged as :_System_C_puts
 
 @function print {
+  load_data #{:_System_C_puts}
   native_call #{:_System_C_puts}
 }
 /*
