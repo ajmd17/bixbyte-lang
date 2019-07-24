@@ -15,7 +15,7 @@
 }
 
 @macro function { // <- body not lexed/parsed until 'invoked'. '#{}' preprocessed. think of everything in body as a string.
-  jmp _#{id}_#{_0}end
+  jmp _#{id}_#{_0}_end
   #{_0}:
     push_addr
     #{body}
