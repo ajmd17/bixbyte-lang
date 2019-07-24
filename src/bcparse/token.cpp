@@ -3,7 +3,7 @@
 namespace bcparse {
   const Token Token::EMPTY = Token(TK_EMPTY, "", SourceLocation::eof);
 
-  std::string Token::TokenTypeToString(TokenClass tokenClass) {
+  std::string Token::tokenTypeToString(TokenClass tokenClass) {
     switch (tokenClass) {
       case TK_INTEGER:       return "integer";
       case TK_FLOAT:         return "float";
@@ -12,6 +12,7 @@ namespace bcparse {
       case TK_REG:           return "register";
       case TK_LOCAL:         return "local";
       case TK_ADDR:          return "address";
+      case TK_IDENT:         return "identifier";
       case TK_TAG:           return "tag";
       case TK_DIRECTIVE:     return "directive";
       case TK_NEWLINE:       return "newline";

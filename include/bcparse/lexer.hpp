@@ -2,9 +2,9 @@
 
 #include <bcparse/source_stream.hpp>
 #include <bcparse/source_location.hpp>
+#include <bcparse/token.hpp>
 
 namespace bcparse {
-  class Token;
   class SourceStream;
   class TokenStream;
   class CompilationUnit;
@@ -27,6 +27,10 @@ namespace bcparse {
     Token readHexNumberLiteral();
     Token readComment();
     Token readIdentifier();
+    Token readDirective();
+    Token readRegister();
+    Token readLocal();
+    Token readDataLocation(Token::TokenClass type);
 
     SourceStream m_sourceStream;
     SourceLocation m_sourceLocation;

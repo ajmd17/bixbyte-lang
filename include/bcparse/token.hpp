@@ -16,6 +16,7 @@ namespace bcparse {
       TK_REG,
       TK_LOCAL,
       TK_ADDR,
+      TK_IDENT,
       TK_TAG,
       TK_DIRECTIVE,
       TK_NEWLINE,
@@ -28,7 +29,7 @@ namespace bcparse {
       TK_CLOSE_BRACE
     };
 
-    static std::string TokenTypeToString(TokenClass tokenClass);    
+    static std::string tokenTypeToString(TokenClass tokenClass);    
     static const Token EMPTY;
 
     Token(TokenClass tokenClass,

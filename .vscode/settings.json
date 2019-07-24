@@ -2,6 +2,7 @@
   "files.associations": {
     "iosfwd": "cpp",
     "map": "cpp",
-    "vector": "cpp"
+    "vector": "cpp",
+    "utility": "cpp"
   }
 }

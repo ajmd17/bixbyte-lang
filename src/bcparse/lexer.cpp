@@ -1,9 +1,9 @@
 #include <bcparse/lexer.hpp>
-
-#include <bcparse/token.hpp>
 #include <bcparse/token_stream.hpp>
 #include <bcparse/compilation_unit.hpp>
 #include <bcparse/source_file.hpp>
+
+#include <array>
 
 using utf::u32char;
 
@@ -18,7 +18,40 @@ namespace bcparse {
   }
 
   void Lexer::analyze() {
+    // skip initial whitespace
+    skipWhitespace();
 
+    while (m_sourceStream.hasNext() && m_sourceStream.peek() != '\0') {
+      Token token = nextToken();
+
+      if (!token.empty()) {
+        m_tokenStream->push(token);
+      }
+
+      // skipWhitespace() returns true if there was a newline
+      const SourceLocation location = m_sourceLocation;
+
+      if (skipWhitespace()) {
+        // add the `newline` statement terminator if not a continuation token
+        if (token && token.getTokenClass() != Token::TK_NEWLINE) {
+          // skip whitespace before next token
+          skipWhitespace();
+
+          // check if next token is connected
+          if (m_sourceStream.hasNext() && m_sourceStream.peek() != '\0') {
+            auto peek = m_sourceStream.peek();
+
+            if (peek == '{' || peek == '.') {
+              // do not add newline
+              continue;
+            }
+          }
+
+          // add newline
+          m_tokenStream->push(Token(Token::TK_NEWLINE, "newline", location));
+        }
+      }
+    }
   }
 
   bool Lexer::skipWhitespace() {
@@ -54,11 +87,92 @@ namespace bcparse {
   }
 
   Token Lexer::nextToken() {
+    SourceLocation location = m_sourceLocation;
 
+    std::array<u32char, 3> ch;
+    int totalPosChange = 0;
+    for (int i = 0; i < 3; i++) {
+      int posChange = 0;
+      ch[i] = m_sourceStream.next(posChange);
+      totalPosChange += posChange;
+    }
+
+    // go back to previous position
+    m_sourceStream.goBack(totalPosChange);
+
+    if (ch[0] == '\"' || ch[0] == '\'') {
+        return readStringLiteral();
+    } else if (ch[0] == '0' && (ch[1] == 'x' || ch[1] == 'X')) {
+        return readHexNumberLiteral();
+    } else if (utf::utf32_isdigit(ch[0]) || (ch[0] == '.' && utf::utf32_isdigit(ch[1]))) {
+        return readNumberLiteral();
+    } else if (ch[0] == '/' && ch[1] == '/') {
+        return readComment();
+    } else if (ch[0] == '@') {
+        return readDirective();
+    } else if (ch[0] == '_' || utf::utf32_isalpha(ch[0])) {
+        return readIdentifier();
+    } else if (ch[0] == '$' && (ch[1] == 'r' || ch[1] == 'R')) {
+      return readRegister();
+    } else if (ch[0] == '$' && (ch[1] == 'l' || ch[1] == 'L')) {
+      return readLocal();
+    } else if (ch[0] == ',') {
+      int posChange = 0;
+      m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+      return Token(Token::TK_COMMA, ",", location);
+    } else if (ch[0] == '(') {
+      int posChange = 0;
+      m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+      return Token(Token::TK_OPEN_PARENTH, "(", location);
+    } else if (ch[0] == ')') {
+      int posChange = 0;
+      m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+      return Token(Token::TK_CLOSE_PARENTH, ")", location);
+    } else if (ch[0] == '[') {
+      int posChange = 0;
+      m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+      return Token(Token::TK_OPEN_BRACKET, "[", location);
+    } else if (ch[0] == ']') {
+      int posChange = 0;
+      m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+      return Token(Token::TK_CLOSE_BRACKET, "]", location);
+    } else if (ch[0] == '{') {
+      int posChange = 0;
+      m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+      return Token(Token::TK_OPEN_BRACE, "{", location);
+    } else if (ch[0] == '}') {
+      int posChange = 0;
+      m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+      return Token(Token::TK_CLOSE_BRACE, "}", location);
+    } else {
+      int posChange = 0;
+      utf::u32char badToken = m_sourceStream.next(posChange);
+
+      char badTokenStr[sizeof(badToken)] = { '\0' };
+      utf::char32to8(badToken, badTokenStr);
+      
+      m_compilationUnit->getErrorList().addError(CompilerError(
+          LEVEL_ERROR,
+          Msg_unexpected_token,
+          location,
+          std::string(badTokenStr)
+      ));
+
+      m_sourceLocation.getColumn() += posChange;
+
+      return Token::EMPTY;
+    }
   }
 
   utf::u32char Lexer::readEscapeCode() {
-// location of the start of the escape code
+    // location of the start of the escape code
     SourceLocation location = m_sourceLocation;
 
     if (hasNext()) {
@@ -76,8 +190,8 @@ namespace bcparse {
       case '\'':
       case '\"':
       case '\\':
-          // return the escape itself
-          return esc;
+        // return the escape itself
+        return esc;
       default:
         m_compilationUnit->getErrorList().addError(CompilerError(
           LEVEL_ERROR,
@@ -161,51 +275,180 @@ namespace bcparse {
     u32char ch = m_sourceStream.peek();
 
     while (m_sourceStream.hasNext() && utf::utf32_isdigit(ch)) {
-        int posChange = 0;
-        u32char nextCh = m_sourceStream.next(posChange);
-        value.append(utf::get_bytes(nextCh));
-        m_sourceLocation.getColumn() += posChange;
+      int posChange = 0;
+      u32char nextCh = m_sourceStream.next(posChange);
+      value.append(utf::get_bytes(nextCh));
+      m_sourceLocation.getColumn() += posChange;
 
-        if (tokenClass != Token::TK_FLOAT) {
-            if (m_sourceStream.hasNext()) {
-                // the character as a utf-32 character
-                u32char ch = m_sourceStream.peek();
+      if (tokenClass != Token::TK_FLOAT) {
+        if (m_sourceStream.hasNext()) {
+            // the character as a utf-32 character
+            u32char ch = m_sourceStream.peek();
 
-                if (ch == (u32char)'.') {
-                    // read next to check if after is a digit
-                    int posChange = 0;
-                    m_sourceStream.next(posChange);
-                    
-                    u32char next = m_sourceStream.peek();
+            if (ch == (u32char)'.') {
+              // read next to check if after is a digit
+              int posChange = 0;
+              m_sourceStream.next(posChange);
+              
+              u32char next = m_sourceStream.peek();
 
-                    if (!utf::utf32_isalpha(next) && next != (u32char)'_') {
-                        // type is a float because of '.' and not an identifier after
-                        tokenClass = Token::TK_FLOAT;
-                        value.append(utf::get_bytes(ch));
-                        m_sourceLocation.getColumn() += posChange;
-                    } else {
-                        // not a float literal, so go back on the '.'
-                        m_sourceStream.goBack(posChange);
-                    }
-                }
+              if (!utf::utf32_isalpha(next) && next != (u32char)'_') {
+                // type is a float because of '.' and not an identifier after
+                tokenClass = Token::TK_FLOAT;
+                value.append(utf::get_bytes(ch));
+                m_sourceLocation.getColumn() += posChange;
+              } else {
+                // not a float literal, so go back on the '.'
+                m_sourceStream.goBack(posChange);
+              }
             }
         }
-        
-        ch = m_sourceStream.peek();
+      }
+      
+      ch = m_sourceStream.peek();
     }
 
     return Token(tokenClass, value, location);
   }
 
   Token Lexer::readHexNumberLiteral() {
+    // location of the start of the hex number
+    SourceLocation location = m_sourceLocation;
 
+    // store the value in a string
+    std::string value;
+
+    // read the "0x"
+    for (int i = 0; i < 2; i++) {
+      int posChange = 0;
+      u32char next_ch = m_sourceStream.next(posChange);
+      value.append(utf::get_bytes(next_ch));
+      m_sourceLocation.getColumn() += posChange;
+    }
+
+    u32char ch = (u32char)('\0');
+
+    do {
+      int posChange = 0;
+      u32char nextCh = m_sourceStream.next(posChange);
+      value.append(utf::get_bytes(nextCh));
+      m_sourceLocation.getColumn() += posChange;
+      ch = m_sourceStream.peek();
+    } while (std::isxdigit(ch));
+
+    long num = std::strtol(value.c_str(), 0, 16);
+    std::stringstream ss;
+    ss << num;
+
+    return Token(Token::TK_INTEGER, ss.str(), location);
   }
 
   Token Lexer::readComment() {
+    SourceLocation location = m_sourceLocation;
 
+    // read '//'
+    for (int i = 0; i < 2; i++) {
+      int posChange = 0;
+      m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+    }
+
+    // read until newline or EOF is reached
+    while (m_sourceStream.hasNext() && m_sourceStream.peek() != '\n') {
+      int posChange = 0;
+      m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+    }
+
+    return Token(Token::TK_NEWLINE, "newline", location);
   }
 
   Token Lexer::readIdentifier() {
+    SourceLocation location = m_sourceLocation;
 
+    // store the name in this string
+    std::string value;
+
+    // the character as a utf-32 character
+    u32char ch = m_sourceStream.peek();
+
+    while (utf::utf32_isdigit(ch) || ch == (u32char)('_') || utf::utf32_isalpha(ch)) {
+      int posChange = 0;
+      ch = m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+      // append the raw bytes
+      value.append(utf::get_bytes(ch));
+      // set ch to be the next character in the buffer
+      ch = m_sourceStream.peek();
+    }
+
+    return Token(Token::TK_IDENT, value, location);
+  }
+
+  Token Lexer::readDirective() {
+    SourceLocation location = m_sourceLocation;
+
+    // read '@'
+    int posChange = 0;
+    m_sourceStream.next(posChange);
+    m_sourceLocation.getColumn() += posChange;
+
+    // store the name
+    std::string value;
+
+    // the character as a utf-32 character
+    u32char ch = m_sourceStream.peek();
+
+    while (utf::utf32_isdigit(ch) || ch == (u32char)('_') || utf::utf32_isalpha(ch)) {
+      int posChange = 0;
+      ch = m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+      // append the raw bytes
+      value.append(utf::get_bytes(ch));
+      // set ch to be the next character in the buffer
+      ch = m_sourceStream.peek();
+    }
+
+    return Token(Token::TK_DIRECTIVE, value, location);
+  }
+
+  Token Lexer::readRegister() {
+    return readDataLocation(Token::TK_REG);
+  }
+
+  Token Lexer::readLocal() {
+    return readDataLocation(Token::TK_LOCAL);
+  }
+
+  Token Lexer::readDataLocation(Token::TokenClass type) {
+    SourceLocation location = m_sourceLocation;
+
+    int posChange;
+
+    // read '$'
+    m_sourceStream.next(posChange);
+    m_sourceLocation.getColumn() += posChange;
+
+    // read 'R'
+    m_sourceStream.next(posChange);
+    m_sourceLocation.getColumn() += posChange;
+
+    // store the register value
+    std::string value;
+
+    // the character as a utf-32 character
+    u32char ch = m_sourceStream.peek();
+
+    while (utf::utf32_isdigit(ch)) {
+      int posChange = 0;
+      ch = m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+      // append the raw bytes
+      value.append(utf::get_bytes(ch));
+      // set ch to be the next character in the buffer
+      ch = m_sourceStream.peek();
+    }
+
+    return Token(type, value, location);
   }
 }
