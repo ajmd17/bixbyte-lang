@@ -1,6 +1,6 @@
 @macro load_str {
   @data #{_0}
-  load_data #{dc} #{_1} // <- `dc` = data counter. index of stored static data at the current point in compilation
+  load_data $d[#{dc - 1}] #{_1} // <- `dc` = data counter. index of stored static data at the current point in compilation. shortcodes should have simple RPN evaluation so we can do the `-1`
 }
 
 @macro call {
