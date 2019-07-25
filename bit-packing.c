@@ -1,4 +1,6 @@
 #include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
 
 // ===== Instructions =====
 
@@ -78,20 +80,20 @@ typedef struct {
 } datatable_t;
 
 datatable_t *datatable_new() {
-  datatable_t *dt = malloc(sizeof(datatable_t));
+  datatable_t *dt = (datatable_t*)malloc(sizeof(datatable_t));
 
   dt->storage[0].data = NULL;
   dt->storage[0].len = 0;
 
-  dt->storage[AT_DATA].data = malloc(STATIC_DATA_SIZE_BYTES);
+  dt->storage[AT_DATA].data = (value_t*)malloc(STATIC_DATA_SIZE_BYTES);
   memset(dt->storage[AT_DATA].data, 0, STATIC_DATA_SIZE_BYTES);
   dt->storage[AT_DATA].len = 0;
 
-  dt->storage[AT_LOCAL].data = malloc(STACK_SIZE_BYTES);
+  dt->storage[AT_LOCAL].data = (value_t*)malloc(STACK_SIZE_BYTES);
   memset(dt->storage[AT_LOCAL].data, 0, STACK_SIZE_BYTES);
   dt->storage[AT_LOCAL].len = 0;
 
-  dt->storage[AT_REG].data = malloc(sizeof(value_t) * NUM_REGISTERS);
+  dt->storage[AT_REG].data = (value_t*)malloc(sizeof(value_t) * NUM_REGISTERS);
   memset(dt->storage[AT_REG].data, 0, sizeof(value_t) * NUM_REGISTERS);
   dt->storage[AT_REG].len = 0;
 
@@ -118,7 +120,7 @@ value_t *datatable_getValue(datatable_t *dt, loc_28_t loc, archtype_t at) {
   int abs = ((at & 0xC) >> 2) - 2;
   size_t idx = (-abs & loc) | ((abs - 1) & (s->len - loc));
 
-  return s->data[idx];
+  return &s->data[idx];
 }
 
 // ===== VM =====
@@ -134,8 +136,5 @@ int main() {
   datatable_t *dt = datatable_new();
   
   datatable_destroy(dt);
-
-  
-
   return 0;
 }
