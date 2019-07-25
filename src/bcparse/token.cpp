@@ -16,6 +16,7 @@ namespace bcparse {
       case TK_TAG:           return "tag";
       case TK_LABEL:         return "label";
       case TK_DIRECTIVE:     return "directive";
+      case TK_INTERPOLATION: return "interpolation";
       case TK_NEWLINE:       return "newline";
       case TK_COMMA:         return "comma";
       case TK_OPEN_PARENTH:  return "(";
