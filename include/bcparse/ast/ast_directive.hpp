@@ -27,7 +27,7 @@ namespace bcparse {
     std::vector<Pointer<AstExpression>> m_arguments;
     std::string m_body;
   };
-  
+
   class AstMacroDirective : public AstDirectiveImpl {
   private:
     AstMacroDirective(const std::vector<Pointer<AstExpression>> &arguments,
@@ -39,7 +39,19 @@ namespace bcparse {
     virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
     virtual void optimize(AstVisitor *visitor, Module *mod) override;
   };
-  
+
+  class AstUserDefinedDirective : public AstDirectiveImpl {
+  private:
+    AstUserDefinedDirective(const std::vector<Pointer<AstExpression>> &arguments,
+      const std::string &body,
+      const SourceLocation &location);
+    virtual ~AstUserDefinedDirective() override;
+
+    virtual void visit(AstVisitor *visitor, Module *mod) override;
+    virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
+    virtual void optimize(AstVisitor *visitor, Module *mod) override;
+  };
+
   class AstDirective : public AstStatement {
   public:
     AstDirective(const std::string &name,
