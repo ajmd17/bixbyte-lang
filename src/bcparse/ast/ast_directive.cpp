@@ -5,6 +5,8 @@
 #include <bcparse/compilation_unit.hpp>
 #include <bcparse/bound_variables.hpp>
 
+#include <sstream>
+
 namespace bcparse {
   AstDirectiveImpl::AstDirectiveImpl(const std::vector<Pointer<AstExpression>> &arguments,
     const std::string &body,
@@ -23,7 +25,33 @@ namespace bcparse {
   AstMacroDirective::~AstMacroDirective() {
   }
 
-  void AstMacroDirective::visit(AstVisitor *visitor, Module *mod) {
+  void AstMacroDirective::visit(AstVisitor *visitor, Module *mod) {   
+    std::stringstream filenameStream;
+    filenameStream << m_location.getFileName();
+    filenameStream << "@" << m_name;
+
+    SourceFile sourceFile(filenameStream.str(), m_body.size());
+    std::memcpy(sourceFile.getBuffer(), m_body.data(), m_body.size());
+
+    SourceStream sourceStream(&sourceFile);
+    TokenStream tokenStream(TokenStreamInfo { filenameStream.str() });
+
+    CompilationUnit unit;
+    unit.getBoundGlobals().setParent(&visitor->getCompilationUnit().getBoundGlobals());
+
+    // add variable for each argument.
+    // (e.g _0 is m_arguments[0], _1 is m_arguments[1] and so on)
+    for (size_t i = 0; i < m_arguments.size(); i++) {
+      std::stringstream ss;
+      ss << "_" << i;
+
+      unit.getBoundGlobals().set(ss.str(), m_arguments[i]);
+    }
+
+    Lexer lexer(sourceStream, &tokenStream, &unit);
+    lexer.analyze();
+
+    // @TODO dadadada....
   }
 
   void AstMacroDirective::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
