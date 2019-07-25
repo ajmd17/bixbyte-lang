@@ -14,6 +14,7 @@ namespace bcparse {
       case TK_ADDR:          return "address";
       case TK_IDENT:         return "identifier";
       case TK_TAG:           return "tag";
+      case TK_LABEL:         return "label";
       case TK_DIRECTIVE:     return "directive";
       case TK_NEWLINE:       return "newline";
       case TK_COMMA:         return "comma";
