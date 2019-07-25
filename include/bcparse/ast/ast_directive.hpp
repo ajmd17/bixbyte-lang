@@ -33,6 +33,7 @@ namespace bcparse {
     AstMacroDirective(const std::vector<Pointer<AstExpression>> &arguments,
       const std::string &body,
       const SourceLocation &location);
+    virtual ~AstMacroDirective() override;
 
     virtual void visit(AstVisitor *visitor, Module *mod) override;
     virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
@@ -45,6 +46,7 @@ namespace bcparse {
       const std::vector<Pointer<AstExpression>> &arguments,
       const std::string &body,
       const SourceLocation &location);
+    virtual ~AstDirective() override;
 
     virtual void visit(AstVisitor *visitor, Module *mod) override;
     virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
