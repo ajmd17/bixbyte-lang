@@ -16,7 +16,7 @@ namespace bcparse {
 
     bool assertCond(bool cond, const CompilerError &error);
   
-  private:
+  protected:
     AstIterator *m_iterator;
     CompilationUnit *m_compilationUnit;
   };

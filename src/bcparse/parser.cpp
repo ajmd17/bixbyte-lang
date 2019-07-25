@@ -1,6 +1,12 @@
 #include <bcparse/parser.hpp>
+#include <bcparse/lexer.hpp>
+#include <bcparse/source_file.hpp>
+#include <bcparse/source_stream.hpp>
 
 #include <bcparse/ast/ast_directive.hpp>
+#include <bcparse/ast/ast_string_literal.hpp>
+
+#include <common/my_assert.hpp>
 
 namespace bcparse {
   Parser::Parser(AstIterator *astIterator,
@@ -125,16 +131,28 @@ namespace bcparse {
     } else {
       res = parseExpression();
 
-      if (!res) {
-        m_compilationUnit->getErrorList().addError(CompilerError(
-          LEVEL_ERROR,
-          Msg_illegal_expression,
-          location
-        ));
-      }
+      // if (!res) {
+      //   m_compilationUnit->getErrorList().addError(CompilerError(
+      //     LEVEL_ERROR,
+      //     Msg_illegal_expression,
+      //     location
+      //   ));
+      // }
+    }
+
+    if (res != nullptr && m_tokenStream->hasNext()) {
+      expectEndOfStmt();
     }
 
     return res;
+  }
+
+  Pointer<AstExpression> Parser::parseExpression() {
+    if (auto term = parseTerm()) {
+      return term;
+    }
+
+    return nullptr;
   }
 
   Pointer<AstExpression> Parser::parseTerm() {
@@ -165,7 +183,7 @@ namespace bcparse {
     } else if (match(Token::TK_FLOAT)) {
       // expr = parseFloatLiteral();
     } else if (match(Token::TK_STRING)) {
-      // expr = parseStringLiteral();
+      expr = parseStringLiteral();
     } else if (match(Token::TK_INTERPOLATION)) {
       expr = parseInterpolation();
     } else {
@@ -194,9 +212,12 @@ namespace bcparse {
     return expr;
   }
 
-  Pointer<AstExpression> Parser::parseExpression() {
-    if (auto term = parseTerm()) {
-      return term;
+  Pointer<AstStringLiteral> Parser::parseStringLiteral() {
+    if (Token token = expect(Token::TK_STRING, true)) {
+      return Pointer<AstStringLiteral>(new AstStringLiteral(
+        token.getValue(),
+        token.getLocation()
+      ));
     }
 
     return nullptr;
@@ -207,8 +228,14 @@ namespace bcparse {
       std::vector<Pointer<AstExpression>> arguments;
       std::stringstream body;
 
-      while (auto expr = parseExpression()) {
-        arguments.emplace_back(expr);
+      while (m_tokenStream->hasNext() &&
+        !match(Token::TK_NEWLINE) &&
+        !match(Token::TK_OPEN_BRACE)) {
+        if (auto expr = parseTerm()) {
+          arguments.emplace_back(expr);
+        } else {
+          break;
+        }
       }
 
       if (match(Token::TK_OPEN_BRACE, true)) {
@@ -221,11 +248,14 @@ namespace bcparse {
             --parenCounter;
 
             if (parenCounter == 0) {
+              m_tokenStream->next();
               break;
             }
           }
 
-          body << m_tokenStream->next().getValue();
+          body << Token::getRepr(m_tokenStream->peek());
+
+          m_tokenStream->next();
         }
       }
 
@@ -236,9 +266,11 @@ namespace bcparse {
         token.getLocation()
       ));
     }
+
+    return nullptr;
   }
   
-  Pointer<AstInterpolation> Parser::parseInterpolation() {
+  Pointer<AstExpression> Parser::parseInterpolation() {
     Token token = expect(Token::TK_INTERPOLATION, true);
     if (token.empty()) return nullptr;
 
@@ -254,7 +286,7 @@ namespace bcparse {
     TokenStream tokenStream(TokenStreamInfo { token.getLocation().getFileName() });
 
     CompilationUnit unit;
-    unit.getBoundGlobals().setParent(&m_compilationUnit.getBoundGlobals());
+    unit.getBoundGlobals().setParent(&m_compilationUnit->getBoundGlobals());
 
     Lexer lexer(sourceStream, &tokenStream, &unit);
     lexer.analyze();
@@ -266,8 +298,6 @@ namespace bcparse {
       switch (token.getTokenClass()) {
       case Token::TK_IDENT:
         {
-          ASSERT(m_sourceStream.getFile() != nullptr);
-
           if (auto value = m_compilationUnit->getBoundGlobals().get(token.getValue())) {
             return value; // @TODO build expression, not just return value
           } else {
@@ -275,8 +305,7 @@ namespace bcparse {
               LEVEL_ERROR,
               Msg_undeclared_identifier,
               token.getLocation(),
-              token.getValue(),
-              m_sourceStream.getFile()->getFileName()
+              token.getValue()
             ));
           }
         }

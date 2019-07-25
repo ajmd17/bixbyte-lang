@@ -9,6 +9,7 @@
 #include <sstream>
 
 using utf::u32char;
+using UStr = utf::Utf8String;
 
 namespace bcparse {
   Lexer::Lexer(const SourceStream &sourceStream,
@@ -44,7 +45,7 @@ namespace bcparse {
       LEVEL_ERROR,
       Msg_unexpected_token,
       location,
-      std::string(ch)
+      std::string("") + (char)ch
     ));
 
     return false;
@@ -81,9 +82,15 @@ namespace bcparse {
           }
 
           // add newline
-          m_tokenStream->push(Token(Token::TK_NEWLINE, "newline", location));
+          m_tokenStream->push(Token(Token::TK_NEWLINE, "\\n", location));
         }
       }
+    }
+
+
+
+    for (auto tk : m_tokenStream->m_tokens) {
+      std::cout << Token::tokenTypeToString(tk.getTokenClass()) << ":" << tk.getValue() << std::endl;
     }
   }
 
@@ -134,17 +141,19 @@ namespace bcparse {
     m_sourceStream.goBack(totalPosChange);
 
     if (ch[0] == '\"' || ch[0] == '\'') {
-        return readStringLiteral();
+      return readStringLiteral();
     } else if (ch[0] == '0' && (ch[1] == 'x' || ch[1] == 'X')) {
-        return readHexNumberLiteral();
+      return readHexNumberLiteral();
     } else if (utf::utf32_isdigit(ch[0]) || (ch[0] == '.' && utf::utf32_isdigit(ch[1]))) {
-        return readNumberLiteral();
+      return readNumberLiteral();
     } else if (ch[0] == '/' && ch[1] == '/') {
-        return readComment();
+      return readComment();
     } else if (ch[0] == '@') {
-        return readDirective();
+      return readDirective();
+    } else if (ch[0] == '#') {
+      return readInterpolation();
     } else if (ch[0] == '_' || utf::utf32_isalpha(ch[0])) {
-        return readIdentifier();
+      return readIdentifier();
     } else if (ch[0] == '$' && (ch[1] == 'r' || ch[1] == 'R')) {
       return readRegister();
     } else if (ch[0] == '$' && (ch[1] == 'l' || ch[1] == 'L')) {
@@ -393,7 +402,7 @@ namespace bcparse {
       m_sourceLocation.getColumn() += posChange;
     }
 
-    return Token(Token::TK_NEWLINE, "newline", location);
+    return Token(Token::TK_NEWLINE, "\\n", location);
   }
 
   Token Lexer::readIdentifier() {
@@ -472,13 +481,15 @@ namespace bcparse {
     m_sourceStream.next(posChange);
     m_sourceLocation.getColumn() += posChange;
 
+    expectChar('[', true, &posChange);
+
     // store the register value
     std::string value;
 
     // the character as a utf-32 character
     u32char ch = m_sourceStream.peek();
 
-    while (utf::utf32_isdigit(ch)) {
+    while (ch == '-' || ch == '+' || utf::utf32_isdigit(ch)) { // allow signs (negative = relative)
       int posChange = 0;
       ch = m_sourceStream.next(posChange);
       m_sourceLocation.getColumn() += posChange;
@@ -488,16 +499,18 @@ namespace bcparse {
       ch = m_sourceStream.peek();
     }
 
+    expectChar(']', true, &posChange);
+
     return Token(type, value, location);
   }
 
-  Token readInterpolation() {
+  Token Lexer::readInterpolation() {
     SourceLocation location = m_sourceLocation;
 
     int posChange = 0;
 
-    if (!expectChar('#', true, &posChange)) goto badToken;
-    if (!expectChar('{', true, &posChange)) goto badToken;
+    if (!expectChar('#', true, &posChange)) return Token::EMPTY;
+    if (!expectChar('{', true, &posChange)) return Token::EMPTY;
 
     int parenCounter = 1;
     
@@ -520,14 +533,10 @@ namespace bcparse {
 
         break;
       }
-      
-      
 
-      body << ch;
+      body << (char)ch;
     }
-    
 
-  badToken:
     expectChar('}');
 
     return Token::EMPTY;

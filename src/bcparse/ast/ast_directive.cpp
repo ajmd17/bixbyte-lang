@@ -172,8 +172,8 @@ namespace bcparse {
 
     if (m_name == "macro") {
       m_impl = new AstMacroDirective(m_arguments, m_body, m_location);
-    } else {
-      // @TODO look through user-defined macros
+    } else if (visitor->getCompilationUnit()->lookupMacro(m_name)) {
+      m_impl = new AstUserDefinedDirective(m_name, m_arguments, m_body, m_location);
     }
 
     if (m_impl != nullptr) {

@@ -9,6 +9,7 @@
 #include <bcparse/token_stream.hpp>
 #include <bcparse/ast_iterator.hpp>
 #include <bcparse/parser.hpp>
+#include <bcparse/analyzer.hpp>
 
 #include <common/clarg.hpp>
 #include <common/str_util.hpp>
@@ -52,13 +53,13 @@ namespace bcparse {
         Lexer lex(sourceStream, &tokenStream, unit);
         lex.analyze();
 
-        for (auto tk : tokenStream.m_tokens) {
-          std::cout << Token::tokenTypeToString(tk.getTokenClass()) << "    " << tk.getValue() << "\n";
-        }
-
-        AstIterator astIterator;
-        Parser parser(&astIterator, &tokenStream, unit);
+        AstIterator iterator;
+        Parser parser(&iterator, &tokenStream, unit);
         parser.parse();
+
+        Analyzer analyzer(&iterator, unit);
+        analyzer.analyze();
+
 
         // SemanticAnalyzer semantic_analyzer(&ast_iterator, &compilation_unit);
         // semantic_analyzer.Analyze();

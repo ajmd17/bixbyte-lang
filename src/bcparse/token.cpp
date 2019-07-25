@@ -1,5 +1,7 @@
 #include <bcparse/token.hpp>
 
+#include <sstream>
+
 namespace bcparse {
   const Token Token::EMPTY = Token(TK_EMPTY, "", SourceLocation::eof);
 
@@ -17,7 +19,7 @@ namespace bcparse {
       case TK_LABEL:         return "label";
       case TK_DIRECTIVE:     return "directive";
       case TK_INTERPOLATION: return "interpolation";
-      case TK_NEWLINE:       return "newline";
+      case TK_NEWLINE:       return "\\n";
       case TK_COMMA:         return "comma";
       case TK_OPEN_PARENTH:  return "(";
       case TK_CLOSE_PARENTH: return ")";
@@ -27,6 +29,26 @@ namespace bcparse {
       case TK_CLOSE_BRACE:   return "}";
       default:               return "??";
     }
+  }
+
+  std::string Token::getRepr(const Token &token) {
+    std::stringstream ss;
+
+    switch (token.getTokenClass()) {
+      case TK_STRING:
+        ss << "\"" << token.getValue() << "\"";
+        break;
+      case TK_REG:
+        ss << "$R[" << token.getValue() << "]";
+        break;
+      case TK_LOCAL:
+        ss << "$L[" << token.getValue() << "]";
+        break;
+      case TK_NEWLINE:       return "\n";
+      default:               return token.getValue();
+    }
+
+    return ss.str();
   }
 
   Token::Token(TokenClass tokenClass, const std::string &value, const SourceLocation &location)
