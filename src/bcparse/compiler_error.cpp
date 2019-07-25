@@ -86,6 +86,7 @@ namespace bcparse {
     { Msg_invalid_type_contract_operator, "Invalid type contract operator '%'. Supported operators are '|' and '&'" },
     { Msg_unsatisfied_type_contract, "Type '%' does not satisfy type contract" },
     { Msg_unsupported_feature, "Unsupported feature" },
+    { Msg_unknown_directive, "'%' is not a built-in or user-defined directive" },
 
     /* Warnings */
     { Msg_unreachable_code, "Unreachable code detected" },
