@@ -117,10 +117,21 @@ namespace bcparse {
   }
 
   Pointer<AstStatement> Parser::parseStatement() {
+    const SourceLocation location = currentLocation();
     Pointer<AstStatement> res;
 
     if (match(Token::TK_DIRECTIVE)) {
       res = parseDirective();
+    } else {
+      res = parseExpression();
+
+      if (!res) {
+        m_compilationUnit->getErrorList().addError(CompilerError(
+          LEVEL_ERROR,
+          Msg_illegal_expression,
+          location
+        ));
+      }
     }
 
     return res;
@@ -155,6 +166,8 @@ namespace bcparse {
       // expr = parseFloatLiteral();
     } else if (match(Token::TK_STRING)) {
       // expr = parseStringLiteral();
+    } else if (match(Token::TK_INTERPOLATION)) {
+      expr = parseInterpolation();
     } else {
       if (token.getTokenClass() == Token::TK_NEWLINE) {
         m_compilationUnit->getErrorList().addError(CompilerError(
@@ -223,5 +236,17 @@ namespace bcparse {
         token.getLocation()
       ));
     }
+  }
+  
+  Pointer<AstInterpolation> Parser::parseInterpolation() {
+    if (Token token = expect(Token::TK_INTERPOLATION, true)) {
+      return Pointer<AstInterpolation>(new AstInterpolation(
+        token.getValue(),
+        m_compilationUnit->getBoundGlobals(),
+        token.getLocation()
+      ));
+    }
+
+    return nullptr;
   }
 }
