@@ -4,6 +4,7 @@
 #include <bcparse/parser.hpp>
 #include <bcparse/compilation_unit.hpp>
 #include <bcparse/bound_variables.hpp>
+#include <bcparse/ast/ast_string_literal.hpp>
 
 #include <sstream>
 
