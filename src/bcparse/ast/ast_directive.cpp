@@ -25,13 +25,84 @@ namespace bcparse {
   AstMacroDirective::~AstMacroDirective() {
   }
 
-  void AstMacroDirective::visit(AstVisitor *visitor, Module *mod) {   
+  void AstMacroDirective::visit(AstVisitor *visitor, Module *mod) {
+    const size_t numErrors = visitor->getCompilationUnit().getErrorList().m_errors.size();
+
+    if (m_arguments.size() != 1) {
+      visitor->getCompilationUnit().getErrorList().addError(CompilerError(
+        LEVEL_ERROR,
+        Msg_custom_error,
+        m_location,
+        "@macro accepts arguments (name)"
+      ));
+    } else {
+      if (Macro *macro = visitor->getCompilationUnit().lookupMacro(m_arguments.first())) {
+        visitor->getCompilationUnit().getErrorList().addError(CompilerError(
+          LEVEL_ERROR,
+          Msg_custom_error,
+          m_location,
+          std::string("@macro `") + m_arguments.first() + "` already defined"
+        ));
+      }
+    }
+
+    if (m_body.length() == 0) {
+      visitor->getCompilationUnit().getErrorList().addError(CompilerError(
+        LEVEL_ERROR,
+        Msg_custom_error,
+        m_location,
+        "@macro missing body"
+      ));
+    }
+
+    if (visitor->getCompilationUnit().getErrorList().m_errors.size() > numErrors) return;
+
+    visitor->getCompilationUnit().defineMacro(m_arguments.first(), body);
+  }
+
+  void AstMacroDirective::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
+  }
+
+  void AstMacroDirective::optimize(AstVisitor *visitor, Module *mod) {
+  }
+  
+  
+  
+  AstUserDefinedDirective::AstUserDefinedDirective(const std::string &name,
+    const std::vector<Pointer<AstExpression>> &arguments,
+    const std::string &body,
+    const SourceLocation &location)
+    : AstDirectiveImpl(arguments, body, location),
+      m_name(name) {
+  }
+  
+  AstUserDefinedDirective::~AstUserDefinedDirective() {
+  }
+
+  void AstUserDefinedDirective::visit(AstVisitor *visitor, Module *mod) {
+    // lookup macro data and instantiate it, re-parsing the body
+    Macro *macro = visitor->getCompilationUnit().lookupMacro(m_name);
+    
+    if (!macro) {
+      visitor->getCompilationUnit().getErrorList().addError(CompilerError(
+        LEVEL_ERROR,
+        Msg_custom_error,
+        m_location,
+        std::string("Could not find @macro with name `") + m_name + "`"
+      ));
+
+      return;
+    }
+    
     std::stringstream filenameStream;
     filenameStream << m_location.getFileName();
     filenameStream << "@" << m_name;
+    filenameStream << " (instantiated on line " << m_location.getLine() << ")";
 
-    SourceFile sourceFile(filenameStream.str(), m_body.size());
-    std::memcpy(sourceFile.getBuffer(), m_body.data(), m_body.size());
+    std::string macroBody = macro->getBody();
+
+    SourceFile sourceFile(filenameStream.str(), macroBody.length());
+    std::memcpy(sourceFile.getBuffer(), macroBody.data(), macroBody.length());
 
     SourceStream sourceStream(&sourceFile);
     TokenStream tokenStream(TokenStreamInfo { filenameStream.str() });
@@ -48,16 +119,18 @@ namespace bcparse {
       unit.getBoundGlobals().set(ss.str(), m_arguments[i]);
     }
 
+    unit.getBoundGlobals().set("body", Pointer<AstStringLiteral>(m_body, m_location));
+
     Lexer lexer(sourceStream, &tokenStream, &unit);
     lexer.analyze();
 
     // @TODO dadadada....
   }
 
-  void AstMacroDirective::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
+  void AstUserDefinedDirective::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
   }
 
-  void AstMacroDirective::optimize(AstVisitor *visitor, Module *mod) {
+  void AstUserDefinedDirective::optimize(AstVisitor *visitor, Module *mod) {
   }
   
   AstDirective::AstDirective(const std::string &name,
