@@ -15,8 +15,7 @@ namespace bcparse {
     BoundVariables();
     BoundVariables(const BoundVariables &other);
 
-    Pointer<AstExpression> &get(const std::string &name);
-    const Pointer<AstExpression> &get(const std::string &name) const;
+    Pointer<AstExpression> get(const std::string &name);
     void set(const std::string &name, const Pointer<AstExpression> &value);
 
   private:
