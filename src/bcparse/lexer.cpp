@@ -3,7 +3,10 @@
 #include <bcparse/compilation_unit.hpp>
 #include <bcparse/source_file.hpp>
 
+#include <common/my_assert.hpp>
+
 #include <array>
+#include <sstream>
 
 using utf::u32char;
 
@@ -15,6 +18,36 @@ namespace bcparse {
       m_tokenStream(tokenStream),
       m_compilationUnit(compilationUnit),
       m_sourceLocation(0, 0, sourceStream.getFile()->getFilePath()) {
+  }
+
+  bool Lexer::expectChar(utf::u32char ch, bool read, int *posChange) {
+    const SourceLocation location = m_sourceLocation;
+
+    if (!m_sourceStream.hasNext()) {
+      goto notFound;
+    }
+
+    if (m_sourceStream.peek() != ch) {
+      goto notFound;
+    }
+
+    if (read) {
+      ASSERT(posChange != nullptr);
+
+      m_sourceStream.next(posChange);
+
+      return true;
+    }
+
+  notFound:
+    m_compilationUnit->getErrorList().addError(CompilerError(
+      LEVEL_ERROR,
+      Msg_unexpected_token,
+      location,
+      std::string(ch)
+    ));
+
+    return false;
   }
 
   void Lexer::analyze() {
@@ -457,4 +490,44 @@ namespace bcparse {
 
     return Token(type, value, location);
   }
+
+  Token readInterpolation() {
+    SourceLocation location = m_sourceLocation;
+
+    int posChange = 0;
+
+    if (!expectChar('#', true, &posChange)) goto badToken;
+    if (!expectChar('{', true, &posChange)) goto badToken;
+
+    int parenCounter = 1;
+    
+    std::stringstream body;
+
+    // read until newline or EOF is reached
+    while (m_sourceStream.hasNext() && m_sourceStream.peek() != '\n') {
+      int posChange = 0;
+      utf::u32char ch = m_sourceStream.next(posChange);
+      m_sourceLocation.getColumn() += posChange;
+      
+      switch (ch) {
+      case '{':
+        ++parenCounter;
+        break;
+      case '}':
+        if (--parenCounter == 0) {
+          return Token(Token::TK_INTERPOLATION, body.str(), location);
+        }
+
+        break;
+      }
+
+      body << ch;
+    }
+    
+
+  badToken:
+    expectChar('}');
+
+    return Token::EMPTY;
+  }  
 }
