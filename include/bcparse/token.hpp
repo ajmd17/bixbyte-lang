@@ -20,6 +20,7 @@ namespace bcparse {
       TK_TAG,
       TK_LABEL,
       TK_DIRECTIVE,
+      TK_INTERPOLATION,
       TK_NEWLINE,
       TK_COMMA,
       TK_OPEN_PARENTH,
