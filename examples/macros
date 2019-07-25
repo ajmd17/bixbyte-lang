@@ -46,7 +46,6 @@ push $r[0]
 @call print
 pop
 
-
 // ==>
 //  load_str "hello world" $r[0]
 //  push $r[0]
