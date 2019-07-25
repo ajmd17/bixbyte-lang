@@ -31,6 +31,7 @@ namespace bcparse {
     Token readRegister();
     Token readLocal();
     Token readDataLocation(Token::TokenClass type);
+    Token readInterpolation();
 
     SourceStream m_sourceStream;
     SourceLocation m_sourceLocation;
