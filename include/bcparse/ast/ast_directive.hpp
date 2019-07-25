@@ -42,7 +42,8 @@ namespace bcparse {
 
   class AstUserDefinedDirective : public AstDirectiveImpl {
   private:
-    AstUserDefinedDirective(const std::vector<Pointer<AstExpression>> &arguments,
+    AstUserDefinedDirective(const std::string &name,
+      const std::vector<Pointer<AstExpression>> &arguments,
       const std::string &body,
       const SourceLocation &location);
     virtual ~AstUserDefinedDirective() override;
@@ -50,6 +51,8 @@ namespace bcparse {
     virtual void visit(AstVisitor *visitor, Module *mod) override;
     virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
     virtual void optimize(AstVisitor *visitor, Module *mod) override;
+
+    std::string m_name;
   };
 
   class AstDirective : public AstStatement {
