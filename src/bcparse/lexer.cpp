@@ -34,7 +34,7 @@ namespace bcparse {
     if (read) {
       ASSERT(posChange != nullptr);
 
-      m_sourceStream.next(posChange);
+      m_sourceStream.next(*posChange);
 
       return true;
     }

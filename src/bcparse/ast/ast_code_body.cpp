@@ -2,7 +2,7 @@
 
 namespace bcparse {
   AstCodeBody::AstCodeBody(const std::string &value, const SourceLocation &location)
-    : AstString(value, location) {
+    : AstStringLiteral(value, location) {
   }
 
   void AstCodeBody::visit(AstVisitor *visitor, Module *mod) {

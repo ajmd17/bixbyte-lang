@@ -26,10 +26,12 @@ namespace bcparse {
 
     std::vector<Pointer<AstExpression>> m_arguments;
     std::string m_body;
+    SourceLocation m_location;
   };
 
   class AstMacroDirective : public AstDirectiveImpl {
-  private:
+    friend class AstDirective;
+  protected:
     AstMacroDirective(const std::vector<Pointer<AstExpression>> &arguments,
       const std::string &body,
       const SourceLocation &location);
@@ -41,7 +43,8 @@ namespace bcparse {
   };
 
   class AstUserDefinedDirective : public AstDirectiveImpl {
-  private:
+    friend class AstDirective;
+  protected:
     AstUserDefinedDirective(const std::string &name,
       const std::vector<Pointer<AstExpression>> &arguments,
       const std::string &body,

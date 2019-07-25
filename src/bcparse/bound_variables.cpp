@@ -2,6 +2,8 @@
 
 #include <common/my_assert.hpp>
 
+#include <stdexcept>
+
 namespace bcparse {
   BoundVariables::BoundVariables()
     : m_parent(nullptr) {
@@ -12,17 +14,17 @@ namespace bcparse {
       m_map(other.m_map) {
   }
   
-  void setParent(BoundVariables *parent) {
+  void BoundVariables::setParent(BoundVariables *parent) {
     ASSERT(parent != nullptr);
 
     if (m_parent != nullptr) {
-      throw std::exception("parent already set");
+      throw "parent already set";
     }
 
     m_parent = parent;
   }
 
-  BoundVariables *getParent() {
+  BoundVariables *BoundVariables::getParent() {
     return m_parent;
   }
 

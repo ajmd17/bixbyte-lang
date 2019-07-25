@@ -62,7 +62,7 @@ namespace bcparse {
     { Msg_bitwise_operands_must_be_int, "Bitwise operands must both be 'Int', got '%' and '%'" },
     { Msg_bitwise_operand_must_be_int, "Bitwise operand must be 'Int', got '%'" },
     { Msg_expected_token, "Expected '%'" },
-    { Msg_unknown_directive, "Unknown directive '%'" },
+    { Msg_unknown_directive, "'%' is not a built-in or user-defined directive" },
     { Msg_unknown_module, "'%' is not an imported module" },
     { Msg_expected_module, "Statement found outside of module" },
     { Msg_empty_module, "The module is empty" },
@@ -86,7 +86,6 @@ namespace bcparse {
     { Msg_invalid_type_contract_operator, "Invalid type contract operator '%'. Supported operators are '|' and '&'" },
     { Msg_unsatisfied_type_contract, "Type '%' does not satisfy type contract" },
     { Msg_unsupported_feature, "Unsupported feature" },
-    { Msg_unknown_directive, "'%' is not a built-in or user-defined directive" },
 
     /* Warnings */
     { Msg_unreachable_code, "Unreachable code detected" },

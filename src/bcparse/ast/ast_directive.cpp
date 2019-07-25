@@ -1,10 +1,12 @@
 #include <bcparse/ast/ast_directive.hpp>
+#include <bcparse/ast/ast_string_literal.hpp>
 
 #include <bcparse/lexer.hpp>
 #include <bcparse/parser.hpp>
+#include <bcparse/ast_visitor.hpp>
 #include <bcparse/compilation_unit.hpp>
 #include <bcparse/bound_variables.hpp>
-#include <bcparse/ast/ast_string_literal.hpp>
+#include <bcparse/source_file.hpp>
 
 #include <sstream>
 
@@ -27,28 +29,41 @@ namespace bcparse {
   }
 
   void AstMacroDirective::visit(AstVisitor *visitor, Module *mod) {
-    const size_t numErrors = visitor->getCompilationUnit().getErrorList().m_errors.size();
+    const size_t numErrors = visitor->getCompilationUnit()->getErrorList().m_errors.size();
+
+    AstStringLiteral *nameArg = nullptr;
 
     if (m_arguments.size() != 1) {
-      visitor->getCompilationUnit().getErrorList().addError(CompilerError(
+      visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
         LEVEL_ERROR,
         Msg_custom_error,
         m_location,
         "@macro accepts arguments (name)"
       ));
     } else {
-      if (Macro *macro = visitor->getCompilationUnit().lookupMacro(m_arguments.first())) {
-        visitor->getCompilationUnit().getErrorList().addError(CompilerError(
+      nameArg = dynamic_cast<AstStringLiteral*>(m_arguments.front().get());
+
+      if (nameArg == nullptr) {
+        visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
           LEVEL_ERROR,
           Msg_custom_error,
           m_location,
-          std::string("@macro `") + m_arguments.first() + "` already defined"
+          "@macro (name) must be a string"
         ));
+      } else {
+        if (Macro *macro = visitor->getCompilationUnit()->lookupMacro(nameArg->getValue())) {
+          visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
+            LEVEL_ERROR,
+            Msg_custom_error,
+            m_location,
+            std::string("@macro `") + nameArg->getValue() + "` already defined"
+          ));
+        }
       }
     }
 
     if (m_body.length() == 0) {
-      visitor->getCompilationUnit().getErrorList().addError(CompilerError(
+      visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
         LEVEL_ERROR,
         Msg_custom_error,
         m_location,
@@ -56,9 +71,9 @@ namespace bcparse {
       ));
     }
 
-    if (visitor->getCompilationUnit().getErrorList().m_errors.size() > numErrors) return;
+    if (visitor->getCompilationUnit()->getErrorList().m_errors.size() > numErrors) return;
 
-    visitor->getCompilationUnit().defineMacro(m_arguments.first(), body);
+    visitor->getCompilationUnit()->defineMacro(nameArg->getValue(), m_body);
   }
 
   void AstMacroDirective::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
@@ -82,10 +97,10 @@ namespace bcparse {
 
   void AstUserDefinedDirective::visit(AstVisitor *visitor, Module *mod) {
     // lookup macro data and instantiate it, re-parsing the body
-    Macro *macro = visitor->getCompilationUnit().lookupMacro(m_name);
+    Macro *macro = visitor->getCompilationUnit()->lookupMacro(m_name);
     
     if (!macro) {
-      visitor->getCompilationUnit().getErrorList().addError(CompilerError(
+      visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
         LEVEL_ERROR,
         Msg_custom_error,
         m_location,
@@ -109,7 +124,7 @@ namespace bcparse {
     TokenStream tokenStream(TokenStreamInfo { filenameStream.str() });
 
     CompilationUnit unit;
-    unit.getBoundGlobals().setParent(&visitor->getCompilationUnit().getBoundGlobals());
+    unit.getBoundGlobals().setParent(&visitor->getCompilationUnit()->getBoundGlobals());
 
     // add variable for each argument.
     // (e.g _0 is m_arguments[0], _1 is m_arguments[1] and so on)
@@ -120,7 +135,7 @@ namespace bcparse {
       unit.getBoundGlobals().set(ss.str(), m_arguments[i]);
     }
 
-    unit.getBoundGlobals().set("body", Pointer<AstStringLiteral>(m_body, m_location));
+    unit.getBoundGlobals().set("body", Pointer<AstStringLiteral>(new AstStringLiteral(m_body, m_location)));
 
     Lexer lexer(sourceStream, &tokenStream, &unit);
     lexer.analyze();
@@ -153,8 +168,10 @@ namespace bcparse {
   }  
 
   void AstDirective::visit(AstVisitor *visitor, Module *mod) {
-    if (name == "macro") {
-      m_impl = new AstMacroDirective(arguments, body, location);
+    ASSERT(m_impl == nullptr);
+
+    if (m_name == "macro") {
+      m_impl = new AstMacroDirective(m_arguments, m_body, m_location);
     } else {
       // @TODO look through user-defined macros
     }
@@ -166,7 +183,7 @@ namespace bcparse {
         LEVEL_ERROR,
         Msg_unknown_directive,
         m_location,
-        name
+        m_name
       ));
     }
   }
