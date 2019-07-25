@@ -372,7 +372,7 @@ namespace bcparse {
     // the character as a utf-32 character
     u32char ch = m_sourceStream.peek();
 
-    while (utf::utf32_isdigit(ch) || ch == (u32char)('_') || utf::utf32_isalpha(ch)) {
+    while (utf::utf32_isdigit(ch) || utf::utf32_isalpha(ch) || ch == '_' || ch == ':') {
       int posChange = 0;
       ch = m_sourceStream.next(posChange);
       m_sourceLocation.getColumn() += posChange;
@@ -382,7 +382,13 @@ namespace bcparse {
       ch = m_sourceStream.peek();
     }
 
-    return Token(Token::TK_IDENT, value, location);
+    Token::TokenClass tokenType = Token::TK_IDENT;
+
+    if (value.back() == ':') {
+      tokenType = Token::TK_LABEL;
+    }
+
+    return Token(tokenType, value, location);
   }
 
   Token Lexer::readDirective() {

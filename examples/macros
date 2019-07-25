@@ -29,16 +29,15 @@
   load_data #{:_System_C_puts} $r[0]
   native_call $r[0]
 }
-/*
-==>
-  jmp _12345123_print_end
-  print:
-    native_call $d[0]
-    load_local $l[-1] $r[1]
-    pop
-    jmp $r[1]
-  _12345123_print_end:
-*/
+
+// ==>
+//  jmp _12345123_print_end
+//  print:
+//    native_call $d[0]
+//    load_local $l[-1] $r[1]
+//    pop
+//    jmp $r[1]
+//  _12345123_print_end:
 
 // ==================================
 
@@ -47,12 +46,11 @@ push $r[0]
 @call print
 pop
 
-/*
-==>
-  load_str "hello world" $r[0]
-  push $r[0]
-  push_addr
-  jmp print
-  pop
-*/
+// ==>
+//  load_str "hello world" $r[0]
+//  push $r[0]
+//  push_addr
+//  jmp print
+//  pop
+
 

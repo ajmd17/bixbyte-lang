@@ -7,6 +7,8 @@
 #include <bcparse/compilation_unit.hpp>
 #include <bcparse/source_file.hpp>
 #include <bcparse/token_stream.hpp>
+#include <bcparse/ast_iterator.hpp>
+#include <bcparse/parser.hpp>
 
 #include <common/clarg.hpp>
 #include <common/str_util.hpp>
@@ -54,9 +56,9 @@ namespace bcparse {
           std::cout << Token::tokenTypeToString(tk.getTokenClass()) << "    " << tk.getValue() << "\n";
         }
 
-        // AstIterator ast_iterator;
-        // Parser parser(&ast_iterator, &token_stream, &compilation_unit);
-        // parser.Parse();
+        AstIterator astIterator;
+        Parser parser(&astIterator, &tokenStream, unit);
+        parser.parse();
 
         // SemanticAnalyzer semantic_analyzer(&ast_iterator, &compilation_unit);
         // semantic_analyzer.Analyze();

@@ -18,6 +18,7 @@ namespace bcparse {
       TK_ADDR,
       TK_IDENT,
       TK_TAG,
+      TK_LABEL,
       TK_DIRECTIVE,
       TK_NEWLINE,
       TK_COMMA,
