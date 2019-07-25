@@ -239,12 +239,56 @@ namespace bcparse {
   }
   
   Pointer<AstInterpolation> Parser::parseInterpolation() {
-    if (Token token = expect(Token::TK_INTERPOLATION, true)) {
-      return Pointer<AstInterpolation>(new AstInterpolation(
-        token.getValue(),
-        m_compilationUnit->getBoundGlobals(),
-        token.getLocation()
-      ));
+    Token token = expect(Token::TK_INTERPOLATION, true);
+    if (token.empty()) return nullptr;
+
+    // @TODO evaluate in-place and return the transformed result.
+    // @macro directives build their own lexers+parsers with variables that are needed in place.
+    // eventually, use reverse polish notation to evaluate, allowing simple operations
+    std::string body = token.getValue();
+
+    SourceFile sourceFile(token.getLocation().getFileName(), body.size());
+    std::memcpy(sourceFile.getBuffer(), body.data(), body.size());
+
+    SourceStream sourceStream(&sourceFile);
+    TokenStream tokenStream(TokenStreamInfo { token.getLocation().getFileName() });
+
+    CompilationUnit unit;
+    unit.getBoundGlobals().setParent(&m_compilationUnit.getBoundGlobals());
+
+    Lexer lexer(sourceStream, &tokenStream, &unit);
+    lexer.analyze();
+
+    while (tokenStream.hasNext()) {
+      const Token token = tokenStream.next();
+
+      // mini-parser
+      switch (token.getTokenClass()) {
+      case Token::TK_IDENT:
+        {
+          ASSERT(m_sourceStream.getFile() != nullptr);
+
+          if (auto value = m_compilationUnit->getBoundGlobals().get(token.getValue())) {
+            return value; // @TODO build expression, not just return value
+          } else {
+            m_compilationUnit->getErrorList().addError(CompilerError(
+              LEVEL_ERROR,
+              Msg_undeclared_identifier,
+              token.getLocation(),
+              token.getValue(),
+              m_sourceStream.getFile()->getFileName()
+            ));
+          }
+        }
+
+        break;
+      default:
+        m_compilationUnit->getErrorList().addError(CompilerError(
+          LEVEL_ERROR,
+          Msg_expected_identifier,
+          token.getLocation()
+        ));
+      }
     }
 
     return nullptr;
