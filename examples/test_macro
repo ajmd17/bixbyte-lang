@@ -1,0 +1,7 @@
+@macro "mymacro" {
+  "hello world"
+  #{_0}
+}
+
+
+@mymacro

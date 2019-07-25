@@ -18,6 +18,8 @@ namespace bcparse {
     void analyze();
 
   private:
+    bool expectChar(utf::u32char ch, bool read = false, int *posChange = nullptr);
+
     bool skipWhitespace();
     bool hasNext();
     Token nextToken();
@@ -31,6 +33,7 @@ namespace bcparse {
     Token readRegister();
     Token readLocal();
     Token readDataLocation(Token::TokenClass type);
+    Token readInterpolation();
 
     SourceStream m_sourceStream;
     SourceLocation m_sourceLocation;

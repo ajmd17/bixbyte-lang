@@ -11,6 +11,7 @@ using Pointer = std::shared_ptr<T>;
 namespace bcparse {
   class AstExpression;
   class AstDirective;
+  class AstStringLiteral;
 
   class Parser {
   public:
@@ -31,9 +32,11 @@ namespace bcparse {
     void skipStatementTerminators();
 
     Pointer<AstStatement> parseStatement();
-    Pointer<AstExpression> parseTerm();
     Pointer<AstExpression> parseExpression();
+    Pointer<AstExpression> parseTerm();
+    Pointer<AstStringLiteral> parseStringLiteral();
     Pointer<AstDirective> parseDirective();
+    Pointer<AstExpression> parseInterpolation();
 
     AstIterator *m_astIterator;
     TokenStream *m_tokenStream;

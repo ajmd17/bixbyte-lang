@@ -20,6 +20,7 @@ namespace bcparse {
       TK_TAG,
       TK_LABEL,
       TK_DIRECTIVE,
+      TK_INTERPOLATION,
       TK_NEWLINE,
       TK_COMMA,
       TK_OPEN_PARENTH,
@@ -30,7 +31,8 @@ namespace bcparse {
       TK_CLOSE_BRACE
     };
 
-    static std::string tokenTypeToString(TokenClass tokenClass);    
+    static std::string tokenTypeToString(TokenClass tokenClass);
+    static std::string getRepr(const Token &token);  
     static const Token EMPTY;
 
     Token(TokenClass tokenClass,
@@ -44,13 +46,12 @@ namespace bcparse {
     inline const SourceLocation &getLocation() const { return m_location; }
     inline bool empty() const { return m_tokenClass == TK_EMPTY; }
     
-    inline Token &operator=(const Token &other)
-    {
-        m_tokenClass = other.m_tokenClass;
-        m_value = other.m_value;
-        m_location = other.m_location;
-        
-        return *this;
+    inline Token &operator=(const Token &other) {
+      m_tokenClass = other.m_tokenClass;
+      m_value = other.m_value;
+      m_location = other.m_location;
+      
+      return *this;
     }
 
     // return true if not empty
