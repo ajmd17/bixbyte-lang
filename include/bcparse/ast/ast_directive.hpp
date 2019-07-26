@@ -11,6 +11,9 @@ template <typename T>
 using Pointer = std::shared_ptr<T>;
 
 namespace bcparse {
+  class AstIterator;
+  class CompilationUnit;
+
   class AstDirectiveImpl {
     friend class AstDirective;
   protected:
@@ -56,6 +59,8 @@ namespace bcparse {
     virtual void optimize(AstVisitor *visitor, Module *mod) override;
 
     std::string m_name;
+    AstIterator *m_iterator;
+    CompilationUnit *m_compilationUnit;
   };
 
   class AstDirective : public AstStatement {

@@ -3,6 +3,9 @@
 
 #include <bcparse/lexer.hpp>
 #include <bcparse/parser.hpp>
+#include <bcparse/analyzer.hpp>
+#include <bcparse/compiler.hpp>
+#include <bcparse/ast_iterator.hpp>
 #include <bcparse/ast_visitor.hpp>
 #include <bcparse/compilation_unit.hpp>
 #include <bcparse/bound_variables.hpp>
@@ -89,10 +92,19 @@ namespace bcparse {
     const std::string &body,
     const SourceLocation &location)
     : AstDirectiveImpl(arguments, body, location),
-      m_name(name) {
+      m_name(name),
+      m_iterator(nullptr),
+      m_compilationUnit(nullptr) {
   }
   
   AstUserDefinedDirective::~AstUserDefinedDirective() {
+    if (m_iterator != nullptr) {
+      delete m_iterator;
+    }
+
+    if (m_compilationUnit != nullptr) {
+      delete m_compilationUnit;
+    }
   }
 
   void AstUserDefinedDirective::visit(AstVisitor *visitor, Module *mod) {
@@ -123,8 +135,11 @@ namespace bcparse {
     SourceStream sourceStream(&sourceFile);
     TokenStream tokenStream(TokenStreamInfo { filenameStream.str() });
 
-    CompilationUnit unit;
-    unit.getBoundGlobals().setParent(&visitor->getCompilationUnit()->getBoundGlobals());
+    ASSERT(m_compilationUnit == nullptr);
+    m_compilationUnit = new CompilationUnit;
+
+    m_compilationUnit->getBoundGlobals().setParent(
+      &visitor->getCompilationUnit()->getBoundGlobals());
 
     // add variable for each argument.
     // (e.g _0 is m_arguments[0], _1 is m_arguments[1] and so on)
@@ -132,18 +147,31 @@ namespace bcparse {
       std::stringstream ss;
       ss << "_" << i;
 
-      unit.getBoundGlobals().set(ss.str(), m_arguments[i]);
+      m_compilationUnit->getBoundGlobals().set(ss.str(), m_arguments[i]);
     }
 
-    unit.getBoundGlobals().set("body", Pointer<AstStringLiteral>(new AstStringLiteral(m_body, m_location)));
+    m_compilationUnit->getBoundGlobals().set("body", Pointer<AstStringLiteral>(
+      new AstStringLiteral(m_body, m_location)));
 
-    Lexer lexer(sourceStream, &tokenStream, &unit);
+    Lexer lexer(sourceStream, &tokenStream, m_compilationUnit);
     lexer.analyze();
 
-    // @TODO dadadada....
+    ASSERT(m_iterator == nullptr);
+    m_iterator = new AstIterator;
+
+    Parser parser(m_iterator, &tokenStream, m_compilationUnit);
+    parser.parse();
+
+    Analyzer analyzer(m_iterator, m_compilationUnit);
+    analyzer.analyze();
   }
 
   void AstUserDefinedDirective::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
+    ASSERT(m_iterator != nullptr);
+    m_iterator->resetPosition();
+
+    Compiler compiler(m_iterator, m_compilationUnit);
+    compiler.compile(out);
   }
 
   void AstUserDefinedDirective::optimize(AstVisitor *visitor, Module *mod) {

@@ -76,6 +76,14 @@ namespace bcparse {
           // optimizer.Optimize();
 
           // compile into bytecode instructions
+          iterator.resetPosition();
+          
+          Compiler compiler(&iterator, unit);
+
+          BytecodeChunk chunk;
+          compiler.compile(&chunk);
+          // @TODO write bytecode file
+
           // ast_iterator.ResetPosition();
           // Compiler compiler(&ast_iterator, &compilation_unit);
           // return compiler.Compile();
