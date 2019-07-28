@@ -171,7 +171,10 @@ namespace bcparse {
     m_iterator->resetPosition();
 
     Compiler compiler(m_iterator, m_compilationUnit);
-    compiler.compile(out);
+
+    std::unique_ptr<BytecodeChunk> sub(new BytecodeChunk);
+    compiler.compile(sub.get());
+    out->append(std::move(sub));
   }
 
   void AstUserDefinedDirective::optimize(AstVisitor *visitor, Module *mod) {

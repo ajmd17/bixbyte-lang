@@ -4,7 +4,7 @@ namespace bcparse {
   BytecodeChunk::BytecodeChunk() {
   }
 
-  void BytecodeChunk::append(const std::unique_ptr<Buildable> &buildable) {
+  void BytecodeChunk::append(std::unique_ptr<Buildable> buildable) {
     if (buildable != nullptr) {
       m_buildables.push_back(std::move(buildable));
     }

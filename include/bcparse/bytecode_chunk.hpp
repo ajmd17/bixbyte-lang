@@ -12,7 +12,7 @@ namespace bcparse {
     BytecodeChunk(const BytecodeChunk &other) = delete;
     virtual ~BytecodeChunk() = default;
 
-    void append(const std::unique_ptr<Buildable> &buildable);
+    void append(std::unique_ptr<Buildable> buildable);
     LabelId_t generateLabel();
 
   private:

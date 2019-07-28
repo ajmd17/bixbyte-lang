@@ -5,11 +5,13 @@
 
 #include <bcparse/lexer.hpp>
 #include <bcparse/compilation_unit.hpp>
+#include <bcparse/bytecode_chunk.hpp>
 #include <bcparse/source_file.hpp>
 #include <bcparse/token_stream.hpp>
 #include <bcparse/ast_iterator.hpp>
 #include <bcparse/parser.hpp>
 #include <bcparse/analyzer.hpp>
+#include <bcparse/compiler.hpp>
 
 #include <common/clarg.hpp>
 #include <common/str_util.hpp>
@@ -22,9 +24,9 @@ using UStr = utf::Utf8String;
 namespace bcparse {
   class BytecodeChunk;
 
-  class Compiler {
+  class CompilerHelper {
   public:
-    Result BuildSourceFile(UStr filename, UStr outFilename, CompilationUnit *unit, BytecodeChunk *out) {
+    static Result buildSourceFile(UStr filename, UStr outFilename, CompilationUnit *unit, BytecodeChunk *out) {
       std::stringstream ss;
       
       std::ifstream in_file(
@@ -122,11 +124,10 @@ Result handleArgs(int argc, char *argv[]) {
     outFilename = (str_util::strip_extension(inFilename.GetData()) + ".bin").c_str();
   }
 
-  Compiler c;
   BytecodeChunk *chunk = nullptr;
   CompilationUnit unit;
 
-  return c.BuildSourceFile(inFilename, outFilename, &unit, chunk);
+  return CompilerHelper::buildSourceFile(inFilename, outFilename, &unit, chunk);
 }
 
 int main(int argc, char *argv[]) {

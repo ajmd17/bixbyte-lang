@@ -1,12 +1,13 @@
 #include <bcparse/compiler.hpp>
 #include <bcparse/ast_iterator.hpp>
 #include <bcparse/compilation_unit.hpp>
+#include <bcparse/bytecode_chunk.hpp>
 
 #include <common/my_assert.hpp>
 
 namespace bcparse {
   Compiler::Compiler(AstIterator *iterator, CompilationUnit *compilationUnit)
-    : Compiler(iterator, compilationUnit) {
+    : AstVisitor(iterator, compilationUnit) {
   }
 
   Compiler::Compiler(const Compiler &other)
@@ -18,9 +19,9 @@ namespace bcparse {
       auto node = m_iterator->next();
       ASSERT(node != nullptr);
 
-      BytecodeChunk *chunk = new BytecodeChunk;
-      node->build(this, nullptr, chunk);
-      top->append(std::unique_ptr<BytecodeChunk>(chunk));
+      std::unique_ptr<BytecodeChunk> chunk(new BytecodeChunk);
+      node->build(this, nullptr, chunk.get());
+      top->append(std::move(chunk));
     }
   }
 }
