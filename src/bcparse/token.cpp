@@ -38,6 +38,9 @@ namespace bcparse {
       case TK_STRING:
         ss << "\"" << token.getValue() << "\"";
         break;
+      case TK_INTERPOLATION:
+        ss << "#{" << token.getValue() << "}";
+        break;
       case TK_REG:
         ss << "$R[" << token.getValue() << "]";
         break;

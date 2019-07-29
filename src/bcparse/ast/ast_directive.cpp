@@ -148,7 +148,7 @@ namespace bcparse {
     for (size_t i = 0; i < m_arguments.size(); i++) {
       std::stringstream ss;
       ss << "_" << i;
-
+  
       m_compilationUnit->getBoundGlobals().set(ss.str(), m_arguments[i]);
     }
 
