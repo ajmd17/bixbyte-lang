@@ -20,6 +20,8 @@ namespace bcparse {
       Value(std::vector<uint8_t>(m_value.begin(), m_value.end()))
     );
 
+    // @TODO assert `id` less than max of 24-bit unsigned integer
+
     ObjLoc left(
       visitor->getCompilationUnit()->getRegisterUsage().current(),
       ObjLoc::DataStoreLocation::RegisterDataStore
