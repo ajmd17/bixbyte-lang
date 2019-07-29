@@ -996,7 +996,12 @@ void interpreter_loop(interpreter_t *it, runtime_t *rt) {
 
         right = datatable_getValue(rt->dt, loc, at);
 
-        value_copyValue(rt, left, right);
+        if (at & AT_REG) {
+          // optimization
+          *left = *right;
+        } else {
+          value_copyValue(rt, left, right);
+        }
 
         break;
       }
