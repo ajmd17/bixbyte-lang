@@ -1,7 +1,0 @@
-/home/ethan/Projects/pie/build/CMakeFiles/rebuild_cache.dir
-/home/ethan/Projects/pie/build/CMakeFiles/edit_cache.dir
-/home/ethan/Projects/pie/build/bcparse/CMakeFiles/rebuild_cache.dir
-/home/ethan/Projects/pie/build/bcparse/CMakeFiles/bcparse.dir
-/home/ethan/Projects/pie/build/bcparse/CMakeFiles/edit_cache.dir
-/home/ethan/Projects/pie/build/vm/CMakeFiles/rebuild_cache.dir
-/home/ethan/Projects/pie/build/vm/CMakeFiles/edit_cache.dir
