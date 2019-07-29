@@ -1,6 +1,6 @@
-@macro "mymacro" {
+@macro "salami" {
   "hello world"
   #{_0}
 }
 
-@mymacro "BALOOGA"
+@salami "BALOOGA"
