@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#include <pthread.h>
+pthread_mutex_t heapMutex = PTHREAD_MUTEX_INITIALIZER;
+
 // ===== Instructions =====
 
 typedef enum {
@@ -31,20 +34,24 @@ void obj_loc_parse(obj_loc_t payload, loc_28_t *loc, archtype_t *at) {
   *at = payload & 0xF;
 }
 
-// ===== Values =====
-
-struct value;
-typedef struct value value_t;
+typedef void * rcmap_key_t;
+typedef void * refcounted_t;
 
 struct runtime;
 typedef struct runtime runtime_t;
+refcounted_t runtime_claim(runtime_t *rt, rcmap_key_t ptr);
+void runtime_release(runtime_t *rt, refcounted_t rc);
 
-typedef struct {
-  value_t *argv;
-  int argc;
-} args_t;
+struct value;
+typedef struct value value_t;
+value_t value_invoke(runtime_t *r, value_t *value);
+// enum _VALUE_FLAGS;
+// typedef enum _VALUE_FLAGS VALUE_FLAGS;
+// value_t value_fromRawPointer(void*, VALUE_FLAGS);
+// void value_destroy(runtime_t *rt, value_t *value);
 
-
+struct args;
+typedef struct args args_t;
 
 typedef uint32_t metadata_t;
 typedef value_t (*native_function_t)(runtime_t*, args_t*);
@@ -64,18 +71,314 @@ typedef enum {
   FLAG_MARKED = 0x1,
   FLAG_OBJECT = 0x2,
   FLAG_EXCEPTION = 0x4,
-  FLAG_MANAGED = 0x8, // raw pointer that needs free() call
+  FLAG_MALLOC = 0x8, // raw pointer that needs free() call
+  FLAG_REFCOUNTED = 0x10
 } VALUE_FLAGS;
 
-typedef struct {
-  
-} heap_node_t;
+// ===== heap memory =====
 
 typedef struct {
+  void *ptr;
+  uint8_t flags;
+} heap_value_t;
+
+struct heap_node;
+typedef struct heap_node heap_node_t;
+
+struct heap_node {
+  heap_value_t hv;
+  heap_node_t *prev;
+  heap_node_t *next;
+};
+
+heap_node_t *heap_node_create() {
+  heap_node_t *node = (heap_node_t*)malloc(sizeof(heap_node_t));
+  node->hv.ptr = NULL;
+  node->hv.flags = 0;
+  node->prev = NULL;
+  node->next = NULL;
+  return node;
+}
+
+void heap_node_destroy(heap_node_t *node) {
+  // @TODO how to free internal obj? dtor pointer?
+  free(node);
+}
+
+
+typedef struct {
+  heap_node_t *head;
   size_t size;
 } heap_t;
 
+heap_t *heap_create() {
+  heap_t *heap = (heap_t*)malloc(sizeof(heap_t));
+  heap->head = NULL;
+  heap->size = 0;
+  return heap;
+}
 
+void heap_destroy(heap_t *heap) {
+  while (heap->head) {
+    heap_node_t *tmp = heap->head;
+    heap->head = tmp->prev;
+
+    heap_node_destroy(tmp);
+
+    --heap->size;
+  }
+}
+
+heap_value_t *heap_alloc(heap_t *heap) {
+  pthread_mutex_lock(&heapMutex);
+
+  heap_node_t *node = heap_node_create();
+
+  if (heap->head != NULL) {
+    heap->head->next = node;
+  }
+
+  // swap
+  node->prev = heap->head;
+  heap->head = node;
+
+  ++heap->size;
+
+  pthread_mutex_unlock(&heapMutex);
+
+  return &heap->head->hv;
+}
+
+void heap_sweep(heap_t *heap) {
+  heap_node_t *last = heap->head;
+
+  while (last) {
+    if (last->hv.flags & FLAG_MARKED) {
+      // unmark
+      last->hv.flags &= ~FLAG_MARKED;
+      last = last->prev;
+      continue;
+    }
+
+    // not marked; delete
+    heap_node_t *prev = last->prev;
+    heap_node_t *next = last->next;
+
+    if (prev) {
+      prev->next = next;
+    }
+
+    if (next) {
+      // removing an item from the middle, so
+      // make the nodes to the other sides now
+      // point to each other
+      next->prev = prev;
+    } else {
+      // since there are no nodes after this,
+      // set the head to be this node here
+      heap->head = prev;
+    }
+
+    heap_node_destroy(last);
+    last = prev;
+
+    --heap->size;
+  }
+}
+
+// ===== Ref Counted Data =====
+// it would be possible (although unsure about performance..)
+//   to pack all counts into a global hashmap, hashed by `ptr`...
+//   this would keep the size down, allow the value to be packed directly into a value_t...
+// typedef struct {
+//   void *ptr;
+//   size_t count;
+// } refcounted_t;
+
+
+//! https://github.com/petewarden/c_hashmap/blob/master/hashmap.c
+
+#define RC_INITIAL_SIZE (256)
+#define RC_MAX_CHAIN_LENGTH (8)
+#define RC_MAP_MISSING -3
+#define RC_MAP_FULL -2
+#define RC_MAP_OMEM -1
+#define RC_MAP_OK 0
+
+typedef struct {
+  rcmap_key_t key; // pointer = key
+  int in_use;
+
+  size_t count;
+} rcentry_t;
+
+typedef struct {
+  int table_size;
+  int size;
+  rcentry_t *data;
+} rcmap_t;
+
+rcmap_t *rcmap_create() {
+  rcmap_t *map = (rcmap_t*)malloc(sizeof(rcmap_t));
+  map->data = (rcentry_t*)calloc(RC_INITIAL_SIZE, sizeof(rcentry_t));
+  map->table_size = RC_INITIAL_SIZE;
+  map->size = 0;
+  return map;
+}
+
+void rcmap_destroy(rcmap_t *map) {
+  free(map->data);
+  free(map);
+}
+
+uint32_t hash6432shift(uint64_t key) {
+  key = (~key) + (key << 18);
+  key = key ^ (key >> 31);
+  key = key * 21;
+  key = key ^ (key >> 11);
+  key = key + (key << 6);
+  key = key ^ (key >> 22);
+  return key;
+}
+
+uint32_t rcmap_hashInt(rcmap_t *map, rcmap_key_t key) {
+  return hash6432shift((uint64_t)key) % map->table_size;
+}
+
+int rcmap_hash(rcmap_t *map, rcmap_key_t key) {
+  int curr, i;
+
+  if (map->size >= (map->table_size / 2)) {
+    return RC_MAP_FULL;
+  }
+
+  curr = rcmap_hashInt(map, key);
+
+  for (i = 0; i < RC_MAX_CHAIN_LENGTH; i++) {
+    if (map->data[curr].in_use == 0) {
+      return curr;
+    }
+
+    if (map->data[curr].in_use == 1 && map->data[curr].key == key) {
+      return curr;
+    }
+
+    curr = (curr + 1) % map->table_size;
+  }
+
+  return RC_MAP_FULL;
+}
+
+int rcmap_put(rcmap_t *map, rcmap_key_t key, size_t count);
+
+int rcmap_rehash(rcmap_t *map) {
+  int i, oldSize;
+  rcentry_t *curr, *tmp;
+
+  tmp = (rcentry_t*)calloc(2 * map->table_size, sizeof(rcentry_t));
+  curr = map->data;
+  map->data = tmp;
+
+  oldSize = map->table_size;
+  map->table_size *= 2;
+  map->size = 0;
+
+  for (i = 0; i < oldSize; i++) {
+    int status;
+
+    if (curr[i].in_use == 0) {
+      continue;
+    }
+
+    status = rcmap_put(map, curr[i].key, curr[i].count);
+
+    if (status != RC_MAP_OK) {
+      return status;
+    }
+  }
+
+  free(curr);
+
+  return RC_MAP_OK;
+}
+
+int rcmap_put(rcmap_t *map, rcmap_key_t key, size_t count) {
+  int index = rcmap_hash(map, key);
+
+  while (index == RC_MAP_FULL) {
+    if (rcmap_rehash(map) == RC_MAP_OMEM) {
+      return RC_MAP_OMEM;
+    }
+
+    index = rcmap_hash(map, key);
+  }
+
+  map->data[index].count = count;
+  map->data[index].key = key;
+  map->data[index].in_use = 1;
+  map->size++;
+
+  return RC_MAP_OK;
+}
+
+int rcmap_getPtr(rcmap_t *map, rcmap_key_t key, size_t **out) {
+  int curr, i;
+
+  curr = rcmap_hashInt(map, key);
+
+  for (i = 0; i < RC_MAX_CHAIN_LENGTH; i++) {
+    if (map->data[curr].in_use) {
+      if (map->data[curr].key == key) {
+        *out = &map->data[curr].count;
+
+        return RC_MAP_OK;
+      }
+    }
+
+    curr = (curr + 1) % map->table_size;
+  }
+
+  *out = NULL;
+
+  return RC_MAP_MISSING;
+}
+
+int rcmap_get(rcmap_t *map, rcmap_key_t key, size_t *out) {
+  size_t *ptr = NULL;
+  int result = rcmap_getPtr(map, key, &ptr);
+
+  if (result == RC_MAP_OK) {
+    *out = *ptr;
+  } else {
+    *out = 0;
+  }
+
+  return result;
+}
+
+int rcmap_remove(rcmap_t *map, rcmap_key_t key) {
+  int curr, i;
+
+  curr = rcmap_hashInt(map, key);
+
+  for (i = 0; i < RC_MAX_CHAIN_LENGTH; i++) {
+    if (map->data[curr].in_use) {
+      if (map->data[curr].key == key) {
+        memset(&map->data[curr], 0, sizeof(rcentry_t));
+        --map->size;
+
+        return RC_MAP_OK;
+      }
+    }
+
+    curr = (curr + 1) % map->table_size;
+  }
+
+  return RC_MAP_MISSING;
+}
+
+
+// ===== object =====
 typedef struct {
   void *ptr;
   // @TODO hashmap of fields?
@@ -92,25 +395,54 @@ void object_destroy(object_t *obj) {
   free(obj);
 }
 
+
+
+
+// ===== Value =====
+
 struct value {
   union {
     int64_t i64;
     uint64_t u64;
     double dbl;
     bool b;
-    void *ptr;
+    void *raw;
+    heap_value_t *hv;
     native_function_t fn;
+    refcounted_t rc;
   } data;
 
   metadata_t metadata;
 };
 
-void value_copyValue(value_t *v, value_t *other) {
-  v->data = other->data;
+
+
+
+void value_destroy(runtime_t *rt, value_t *value) {
+  /*if (value->metadata & (TYPE_POINTER | (FLAG_OBJECT << 8))) {
+    object_destroy((object_t*)value->data.ptr);
+  } else*/
+  if (value->metadata & (TYPE_POINTER | (FLAG_REFCOUNTED << 8))) {
+    runtime_release(rt, value->data.rc);
+  } else if (value->metadata & (TYPE_POINTER | (FLAG_MALLOC << 8))) {
+    free(value->data.raw);
+  }
+}
+
+void value_copyValue(runtime_t *rt, value_t *v, value_t *other) {
+  value_destroy(rt, v);
+
+  if (other->metadata & (TYPE_POINTER | (FLAG_REFCOUNTED << 8))) {
+    v->data.rc = runtime_claim(rt, (rcmap_key_t)other->data.rc);
+  } else {
+    v->data = other->data;
+  }
+
   v->metadata = other->metadata;
 }
 
-void value_setInt(value_t *v, int64_t i64) {
+void value_setInt(runtime_t *rt, value_t *v, int64_t i64) {
+  value_destroy(rt, v);
   v->data.i64 = i64;
   v->metadata = TYPE_INT;
 }
@@ -126,7 +458,8 @@ value_t value_fromInt(int64_t i64) {
   return v;
 }
 
-void value_setUint(value_t *v, uint64_t u64) {
+void value_setUint(runtime_t *rt, value_t *v, uint64_t u64) {
+  value_destroy(rt, v);
   v->data.u64 = u64;
   v->metadata = TYPE_UINT;
 }
@@ -142,7 +475,8 @@ value_t value_fromUint(uint64_t u64) {
   return v;
 }
 
-void value_setDouble(value_t *v, double dbl) {
+void value_setDouble(runtime_t *rt, value_t *v, double dbl) {
+  value_destroy(rt, v);
   v->data.dbl = dbl;
   v->metadata = TYPE_DOUBLE;
 }
@@ -158,7 +492,8 @@ value_t value_fromDouble(double dbl) {
   return v;
 }
 
-void value_setBoolean(value_t *v, bool b) {
+void value_setBoolean(runtime_t *rt, value_t *v, bool b) {
+  value_destroy(rt, v);
   v->data.b = b;
   v->metadata = TYPE_BOOLEAN;
 }
@@ -174,27 +509,34 @@ value_t value_fromBoolean(bool b) {
   return v;
 }
 
-value_t value_createObject() {
+value_t value_createObject(heap_t *heap) {
   value_t v;
-  v.data.ptr = (void*)object_create();
+  v.data.hv = heap_alloc(heap);
   v.metadata = TYPE_POINTER | (FLAG_OBJECT << 8);
   return v;
 }
 
-void *value_getPointer(value_t *value) {
-  return value->data.ptr;
+void *value_getRawPointer(value_t *value) {
+  return value->data.raw;
 }
 
-void value_setRawPointer(value_t *v, void *ptr, VALUE_FLAGS flags) {
-  v->data.ptr = ptr;
+void value_setRawPointer(runtime_t *rt, value_t *v, void *raw, VALUE_FLAGS flags) {
+  value_destroy(rt, v);
+  v->data.raw = raw;
   v->metadata = TYPE_POINTER | (flags << 8);
 }
 
-value_t value_fromRawPointer(void *ptr, VALUE_FLAGS flags) {
+value_t value_fromRawPointer(void *raw, VALUE_FLAGS flags) {
   value_t v;
-  v.data.ptr = ptr;
+  v.data.raw = raw;
   v.metadata = TYPE_POINTER | (flags << 8);
   return v;
+}
+
+void value_setRefCounted(runtime_t *rt, value_t *v, void *ptr) {
+  value_destroy(rt, v);
+  v->data.rc = runtime_claim(rt, (rcmap_key_t)ptr);
+  v->metadata = TYPE_POINTER | (FLAG_REFCOUNTED << 8);
 }
 
 value_t value_fromFunction(native_function_t fn) {
@@ -202,6 +544,12 @@ value_t value_fromFunction(native_function_t fn) {
   v.data.fn = fn;
   v.metadata = TYPE_FUNCTION;
   return v;
+}
+
+void value_setFunction(runtime_t *rt, value_t *v, native_function_t fn) {
+  value_destroy(rt, v);
+  v->data.fn = fn;
+  v->metadata = TYPE_FUNCTION;
 }
 
 VALUE_TYPE value_getType(value_t *value) {
@@ -223,33 +571,29 @@ void value_setFlag(value_t *value, VALUE_FLAGS flag, int state) {
 }
 
 uintptr_t value_getID(value_t *value) {
-  switch (value_getType(value)) {
-    case TYPE_POINTER:
-      return (uintptr_t)value->data.ptr;
-    case TYPE_FUNCTION:
-      return (uintptr_t)value->data.fn;
-    default:
-      return (uintptr_t)(&value->data);
+  VALUE_TYPE type = value_getType(value);
+  VALUE_FLAGS flags = value_getFlags(value);
+
+  if (type == TYPE_POINTER) {
+    if (flags & FLAG_REFCOUNTED) {
+      return (uintptr_t)value->data.rc;
+    } else if (flags & FLAG_OBJECT) {
+      // assert value->data.hv != NULL
+      return (uintptr_t)value->data.hv->ptr;
+    }
+
+    return (uintptr_t)value->data.raw;
+  } else if (type == TYPE_FUNCTION) {
+    return (uintptr_t)value->data.fn;
   }
+
+  return (uintptr_t)(&value->data);
+
   //int isptr = !!(value->metadata & TYPE_POINTER);
   //return (-isptr & (uintptr_t)value->data.ptr) | ((isptr - 1) & (uintptr_t)(&value->data));
 }
 
-value_t value_invoke(runtime_t *r, value_t *value, int argc, value_t *argv) {
-  args_t args;
-  args.argv = argv;
-  args.argc = argc;
 
-  return value->data.fn(r, &args);
-}
-
-void value_destroy(value_t *value) {
-  if (value->metadata & (TYPE_POINTER | (FLAG_OBJECT << 8))) {
-    object_destroy((object_t*)value->data.ptr);
-  } else if (value->metadata & (TYPE_POINTER | (FLAG_MANAGED << 8))) {
-    free(value->data.ptr);
-  }
-}
 
 // ===== Data storage =====
 
@@ -290,18 +634,38 @@ datatable_t *datatable_create() {
   return dt;
 }
 
-void datatable_destroy(datatable_t *dt) {
+void datatable_destroy(runtime_t *rt, datatable_t *dt) {
   int i;
 
   for (i = 0; i < 4; i++) {
     while (dt->storage[i].len) {
-      value_destroy(&dt->storage[i].data[--dt->storage[i].len]);
+      value_destroy(rt, &dt->storage[i].data[--dt->storage[i].len]);
     }
 
     free(dt->storage[i].data);
   }
-  
+
   free(dt);
+}
+
+void datatable_markTable(storage_t *s) {
+  size_t len = s->len;
+
+  while (len) {
+    value_t *v = &s->data[len - 1];
+
+    // @TODO partitioning to prevent branch prediction misses?
+    if (v->metadata & (TYPE_POINTER | (FLAG_OBJECT << 8))) {
+      v->data.hv->flags |= FLAG_MARKED;
+    }
+
+    --len;
+  }
+}
+
+void datatable_mark(datatable_t *dt) {
+  datatable_markTable(&dt->storage[AT_DATA]);
+  datatable_markTable(&dt->storage[AT_LOCAL]);
 }
 
 value_t *datatable_getValue(datatable_t *dt, loc_28_t loc, archtype_t at) {
@@ -311,15 +675,6 @@ value_t *datatable_getValue(datatable_t *dt, loc_28_t loc, archtype_t at) {
   size_t idx = (-abs & loc) | ((abs - 1) & (s->len - loc));
 
   return &s->data[idx];
-}
-
-void datatable_setValue(datatable_t *dt, loc_28_t loc, archtype_t at, value_t *v) {
-  storage_t *s = &dt->storage[at & 0x3];
-
-  int abs = ((at & 0xC) >> 2) - 2;
-  size_t idx = (-abs & loc) | ((abs - 1) & (s->len - loc));
-
-  s->data[idx] = *v;
 }
 
 // ===== Exceptions =====
@@ -339,27 +694,85 @@ exception_t exception_fromValue(value_t *argument) {
 // ===== Runtime =====
 struct runtime {
   datatable_t *dt;
+  heap_t *heap;
+  rcmap_t *rc;
 };
 
 runtime_t *runtime_create() {
-  runtime_t *rt = (runtime_t*)malloc(sizeof(runtime_t));
+  runtime_t *r = (runtime_t*)malloc(sizeof(runtime_t));
 
-  rt->dt = datatable_create();
+  r->heap = heap_create();
+  r->dt = datatable_create();
+  r->rc = rcmap_create();
 
-  return rt;
+  return r;
 }
 
-void runtime_destroy(runtime_t *rt) {
-  datatable_destroy(rt->dt);
-  free(rt);
+void runtime_destroy(runtime_t *r) {
+  rcmap_destroy(r->rc);
+  datatable_destroy(r, r->dt);
+  heap_destroy(r->heap);
+  free(r);
 }
 
-value_t runtime_throwException(runtime_t *r, exception_t *e) {
+void runtime_gc(runtime_t *r) {
+  pthread_mutex_lock(&heapMutex);
+
+  datatable_mark(r->dt);
+  heap_sweep(r->heap);
+
+  pthread_mutex_unlock(&heapMutex);
+}
+
+void runtime_throwException(runtime_t *r, exception_t *e) {
   // @TODO internal VM handling.
 
-  value_t value = value_fromRawPointer((void*)e, FLAG_EXCEPTION);
-  
-  return value;
+}
+
+#include <assert.h>
+
+refcounted_t runtime_claim(runtime_t *rt, rcmap_key_t key) {
+  size_t *cnt = NULL;
+
+  int result = rcmap_getPtr(rt->rc, key, &cnt);
+
+  if (result == RC_MAP_OK) {
+    ++(*cnt);
+    return (refcounted_t)key;
+  } else if (result == RC_MAP_MISSING) {
+    result = rcmap_put(rt->rc, key, 1);
+  }
+
+  if (result == RC_MAP_OK) {
+    return (refcounted_t)key;
+  }
+
+  // uh oh. throw exception?
+  return NULL;
+}
+
+void runtime_release(runtime_t *rt, refcounted_t rc) {
+  size_t *cnt = NULL;
+
+  int result = rcmap_getPtr(rt->rc, rc, &cnt);
+
+  if (result != RC_MAP_OK) {
+    // throw exception?
+    return;
+  }
+
+  assert(*cnt > 0);
+
+  if (--(*cnt) == 0) {
+    free(rc);
+
+    result = rcmap_remove(rt->rc, rc);
+  }
+
+  if (result != RC_MAP_OK) {
+    // throw
+    return;
+  }
 }
 
 // ===== Interpreter =====
@@ -454,9 +867,9 @@ enum INSTRUCTIONS { // max: 32 values
   OP_CMP = 4, // compare and set compare flag
 
   OP_JMP = 5, // jump to location held in value
-  
+
   OP_PUSH = 6, // push value to stack
-  OP_POP = 7, // pop n values from stack 
+  OP_POP = 7, // pop n values from stack
 
   // ===== binary operations
   OP_ADD = 8, // +
@@ -476,7 +889,7 @@ enum INSTRUCTIONS { // max: 32 values
   OP_NEG = 18, // - (mathematical negation)
   OP_NOT = 19, // ~
 
-  OP_PLACEHOLDER_20 = 20, // cast ?
+  OP_CALL = 20,
   OP_PLACEHOLDER_21 = 21,
   OP_PLACEHOLDER_22 = 22,
   OP_PLACEHOLDER_23 = 23,
@@ -491,10 +904,8 @@ enum INSTRUCTIONS { // max: 32 values
   OP_HALT = 31, // exit program
 };
 
-void interpreter_loop(interpreter_t *it) {
+void interpreter_loop(interpreter_t *it, runtime_t *rt) {
   uint8_t data, opcode, flags, cache[64];
-
-  runtime_t *rt = runtime_create();
 
   // uint8_t *const_data_pool[8];
   // const_data_pool[LOAD_FLAGS_NULL] = { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x5 };
@@ -524,31 +935,31 @@ void interpreter_loop(interpreter_t *it) {
 
         switch (flags) {
           case LOAD_FLAGS_NULL:
-            v->data.ptr = NULL;
+            v->data.raw = NULL;
             v->metadata = TYPE_POINTER;
 
             break;
           case LOAD_FLAGS_I64: {
             interpreter_read(it, sizeof(int64_t), cache);
-            value_setInt(v, *((int64_t*)cache));
+            value_setInt(rt, v, *((int64_t*)cache));
 
             break;
           }
           case LOAD_FLAGS_U64: {
             interpreter_read(it, sizeof(uint64_t), cache);
-            value_setUint(v, *((uint64_t*)cache));
+            value_setUint(rt, v, *((uint64_t*)cache));
 
             break;
           }
           case LOAD_FLAGS_F64: {
             interpreter_read(it, sizeof(double), cache);
-            value_setDouble(v, *((double*)cache));
+            value_setDouble(rt, v, *((double*)cache));
 
             break;
           }
           case LOAD_FLAGS_BOOL: {
             interpreter_read(it, sizeof(uint8_t), cache);
-            value_setBoolean(v, (bool)cache[0]);
+            value_setBoolean(rt, v, (bool)cache[0]);
 
             break;
           }
@@ -556,10 +967,10 @@ void interpreter_loop(interpreter_t *it) {
             interpreter_read(it, sizeof(uint64_t), cache);
             uint64_t sz = *((uint64_t*)cache);
 
-            void *data = malloc(sz);
+            void *data = malloc(sz); // managed by refcounter
             interpreter_read(it, sz, data);
 
-            value_setRawPointer(v, data, FLAG_MANAGED);
+            value_setRefCounted(rt, v, data);
 
             break;
           }
@@ -585,7 +996,7 @@ void interpreter_loop(interpreter_t *it) {
 
         right = datatable_getValue(rt->dt, loc, at);
 
-        value_copyValue(left, right);
+        value_copyValue(rt, left, right);
 
         break;
       }
@@ -682,18 +1093,24 @@ void interpreter_loop(interpreter_t *it) {
         interpreter_read(it, sizeof(o), &o);
         obj_loc_parse(o, &loc, &at);
 
-        value_copyValue(&stack.data[stack.len++], datatable_getValue(rt->dt, loc, at));
+        value_copyValue(rt, &stack.data[stack.len++], datatable_getValue(rt->dt, loc, at));
 
         break;
       }
 
       case OP_POP: {
         // assert(stack.len != 0);
-        // if ref counting ... value_destroy(stack[stack.len--]);
+
+        storage_t *s = &rt->dt->storage[AT_LOCAL];
+
         interpreter_read(it, sizeof(uint16_t), cache);
         uint16_t sz = *((uint16_t*)cache);
 
-        rt->dt->storage[AT_LOCAL].len -= sz;
+        //rt->dt->storage[AT_LOCAL].len -= sz;
+
+        while (sz--) { // required to call free() on malloc'd objects
+          value_destroy(rt, &s->data[--s->len]);
+        }
 
         break;
       }
@@ -829,6 +1246,24 @@ void interpreter_loop(interpreter_t *it) {
         break;
       }
 
+      case OP_CALL: {
+        obj_loc_t o;
+        loc_28_t loc;
+        archtype_t at;
+
+        interpreter_read(it, sizeof(o), &o);
+        obj_loc_parse(o, &loc, &at);
+
+        value_t result = value_invoke(rt, datatable_getValue(rt->dt, loc, at));
+
+        rt->dt->storage[AT_REG].data[0] = result;
+
+        // @NOTE: reason we are NOT doing value_copyValue() here, is because we want the register value to inherit
+        // all responsibilities of `result` here ... including refcounts, free() obligations...
+
+        break;
+      }
+
       // ...
 
       case OP_HALT:
@@ -836,31 +1271,51 @@ void interpreter_loop(interpreter_t *it) {
         break;
     }
   }
+}
 
-  runtime_destroy(rt);
+// ===== Native function arguments =====
+
+struct args {
+  storage_t *_stack;
+};
+
+value_t *args_getArg(args_t *args, size_t index) {
+  return &args->_stack->data[args->_stack->len - 1 - index];
+}
+
+value_t value_invoke(runtime_t *r, value_t *value) {
+  args_t args;
+  args._stack = &r->dt->storage[AT_LOCAL];
+
+  return value->data.fn(r, &args);
+}
+
+// ===== Builtin bindings =====
+value_t _System_createObject(runtime_t *r, args_t *args) {
+  return value_createObject(r->heap);
 }
 
 // ===== C Lib functions =====
 
+value_t _System_C_exit(runtime_t *r, args_t *args) {
+  exit(value_getInt(args_getArg(args, 0)));
+
+  return value_fromRawPointer(NULL, 0);
+}
+
 #include <math.h>
 value_t _System_C_fmod(runtime_t *r, args_t *args) {
-  if (args->argc != 2) {
-  	return runtime_throwException(r, NULL);
-  }
+  double a = value_getDouble(args_getArg(args, 0));
+  double b = value_getDouble(args_getArg(args, 1));
 
-  return value_fromDouble(fmod(value_getDouble(&args->argv[0]), value_getDouble(&args->argv[1])));
+  return value_fromDouble(fmod(a, b));
 }
 
 value_t _System_C_strlen(runtime_t *r, args_t *args) {
-  if (args->argc != 1) {
-  	return runtime_throwException(r, NULL);
-  }
-
-  return value_fromInt(strlen((char*)value_getPointer(&args->argv[0])));
+  return value_fromInt(strlen((char*)value_getRawPointer(args_getArg(args, 0))));
 }
 
-// ===== Main driver =====
-
+// ===== Utility functions =====
 
 uint8_t makeInstruction(enum INSTRUCTIONS opcode, uint8_t flags) {
   uint8_t data = opcode;
@@ -874,14 +1329,36 @@ void showArguments(int argc, char *argv[]) {
   exit(EXIT_FAILURE);
 }
 
-int main(int argc, char *argv[]) {
-  if (argc == 2) {
-    showArguments(argc, argv);
-  }
+// ===== threading functions =====
 
+typedef struct {
+  runtime_t *rt;
   ubyte_t *data;
   size_t len;
+} interpreter_data_t;
 
+void *interpreterThread(void *arg) {
+  interpreter_data_t *iData = (interpreter_data_t*)arg;
+
+  interpreter_t *it = interpreter_create(iData->data, iData->len);
+
+  value_setFunction(iData->rt, datatable_getValue(iData->rt->dt, 0, AT_DATA | AT_ABS), _System_C_exit);
+
+  interpreter_loop(it, iData->rt);
+  interpreter_destroy(it);
+
+  return NULL;
+}
+
+void *gcThread(void *arg) {
+  runtime_t *rt = (runtime_t*)arg;
+
+  // @TODO
+
+  return NULL;
+}
+
+void openFile(interpreter_data_t *iData, int argc, char *argv[]) {
   FILE *fp = fopen(argv[1], "r");
 
   if (fp == NULL) {
@@ -899,7 +1376,7 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
 
-    data = malloc(bufSize);
+    iData->data = malloc(bufSize);
 
     if (fseek(fp, 0L, SEEK_SET) != 0) {
       puts("Error reading - could not seek to end");
@@ -907,10 +1384,10 @@ int main(int argc, char *argv[]) {
     }
 
     /* Read the entire file into memory. */
-    size_t readAmt = fread(data, sizeof(ubyte_t), bufSize, fp);
+    iData->len = fread(iData->data, sizeof(ubyte_t), bufSize, fp);
 
-    if (readAmt != bufSize) {
-      printf("Error reading - readAmt (%zu) != bufSize (%ld)", readAmt, bufSize);
+    if (iData->len != bufSize) {
+      printf("Error reading - iData->len (%zu) != bufSize (%ld)", iData->len, bufSize);
       exit(EXIT_FAILURE);
     }
 
@@ -921,13 +1398,88 @@ int main(int argc, char *argv[]) {
   }
 
   fclose(fp);
+}
 
-  interpreter_t *it = interpreter_create(data, len);
+#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY(byte)  \
+  (byte & 0x80 ? '1' : '0'), \
+  (byte & 0x40 ? '1' : '0'), \
+  (byte & 0x20 ? '1' : '0'), \
+  (byte & 0x10 ? '1' : '0'), \
+  (byte & 0x08 ? '1' : '0'), \
+  (byte & 0x04 ? '1' : '0'), \
+  (byte & 0x02 ? '1' : '0'), \
+  (byte & 0x01 ? '1' : '0')
 
-  interpreter_loop(it);
-  interpreter_destroy(it);
+// ===== Main driver =====
+int main(int argc, char *argv[]) {
+  interpreter_data_t iData;
 
-  free(data);
+  if (argc == 1) {
+    iData.data = malloc(512);
+    iData.len = 0;
+
+    uint8_t u8;
+    uint16_t u16;
+    uint32_t u32;
+    uint64_t u64;
+
+    #define STR(s) s
+
+    #define PUT_BYTES(sz, cmd) \
+      do { \
+        u##sz = STR(cmd); \
+        memcpy((iData.data + iData.len), &u##sz, sizeof(u##sz)); \
+        iData.len += sizeof(u##sz); \
+      } while (0)
+
+    PUT_BYTES(8, makeInstruction(OP_LOAD, LOAD_FLAGS_I64));
+    PUT_BYTES(32, obj_loc_make(1, AT_ABS | AT_DATA));
+    PUT_BYTES(64, 255);
+
+    PUT_BYTES(8, makeInstruction(OP_MOV, 0));
+    PUT_BYTES(32, obj_loc_make(0, AT_ABS | AT_REG));
+    PUT_BYTES(32, obj_loc_make(1, AT_ABS | AT_DATA));
+
+
+
+    #undef PUT_BYTES
+    #undef STR
+
+    int i;
+    for (i = 0; i < iData.len; i++) {
+      printf(BYTE_TO_BINARY_PATTERN " ", BYTE_TO_BINARY(iData.data[i]));
+    }
+
+    puts("");
+
+    // free(iData.data);
+
+    // return 0;
+
+  } else if (argc == 2) {
+    openFile(&iData, argc, argv);
+  } else {
+    showArguments(argc, argv);
+    return 1;
+  }
+
+
+  iData.rt = runtime_create();
+
+  pthread_t interpreterThreadId, gcThreadId;
+
+  pthread_create(&interpreterThreadId, NULL, interpreterThread, (void*)&iData);
+  pthread_join(interpreterThreadId, NULL);
+
+  pthread_create(&gcThreadId, NULL, gcThread, (void*)iData.rt);
+  pthread_join(gcThreadId, NULL);
+
+  runtime_gc(iData.rt);
+
+  runtime_destroy(iData.rt);
+
+  free(iData.data);
 
   return 0;
 }
