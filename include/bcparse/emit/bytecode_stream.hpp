@@ -3,6 +3,7 @@
 #include <bcparse/emit/obj_loc.hpp>
 
 #include <vector>
+#include <cstring>
 
 namespace bcparse {
   class BytecodeStream {
