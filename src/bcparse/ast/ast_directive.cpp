@@ -1,6 +1,8 @@
 #include <bcparse/ast/ast_directive.hpp>
 #include <bcparse/ast/ast_string_literal.hpp>
 
+#include <bcparse/emit/bytecode_chunk.hpp>
+
 #include <bcparse/lexer.hpp>
 #include <bcparse/parser.hpp>
 #include <bcparse/analyzer.hpp>
@@ -136,7 +138,7 @@ namespace bcparse {
     TokenStream tokenStream(TokenStreamInfo { filenameStream.str() });
 
     ASSERT(m_compilationUnit == nullptr);
-    m_compilationUnit = new CompilationUnit;
+    m_compilationUnit = new CompilationUnit(visitor->getCompilationUnit()->getDataStorage());
 
     m_compilationUnit->getBoundGlobals().setParent(
       &visitor->getCompilationUnit()->getBoundGlobals());
@@ -173,7 +175,7 @@ namespace bcparse {
     Compiler compiler(m_iterator, m_compilationUnit);
 
     std::unique_ptr<BytecodeChunk> sub(new BytecodeChunk);
-    compiler.compile(sub.get());
+    compiler.compile(sub.get(), false);
     out->append(std::move(sub));
   }
 

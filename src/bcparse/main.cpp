@@ -3,15 +3,17 @@
 #include <utility>
 #include <memory>
 
+#include <bcparse/emit/bytecode_chunk.hpp>
+
 #include <bcparse/lexer.hpp>
 #include <bcparse/compilation_unit.hpp>
-#include <bcparse/bytecode_chunk.hpp>
 #include <bcparse/source_file.hpp>
 #include <bcparse/token_stream.hpp>
 #include <bcparse/ast_iterator.hpp>
 #include <bcparse/parser.hpp>
 #include <bcparse/analyzer.hpp>
 #include <bcparse/compiler.hpp>
+#include <bcparse/emit/emitter.hpp>
 
 #include <common/clarg.hpp>
 #include <common/str_util.hpp>
@@ -22,11 +24,9 @@ using Result = std::pair<bool, std::string>;
 using UStr = utf::Utf8String;
 
 namespace bcparse {
-  class BytecodeChunk;
-
   class CompilerHelper {
   public:
-    static Result buildSourceFile(UStr filename, UStr outFilename, CompilationUnit *unit, BytecodeChunk *out) {
+    static Result buildSourceFile(UStr filename, CompilationUnit *unit, BytecodeChunk *out) {
       std::stringstream ss;
       
       std::ifstream in_file(
@@ -82,8 +82,10 @@ namespace bcparse {
           
           Compiler compiler(&iterator, unit);
 
-          BytecodeChunk chunk;
-          compiler.compile(&chunk);
+          std::unique_ptr<BytecodeChunk> chunk(new BytecodeChunk);
+          compiler.compile(chunk.get());
+          out->append(std::move(chunk));
+
           // @TODO write bytecode file
 
           // ast_iterator.ResetPosition();
@@ -124,10 +126,31 @@ Result handleArgs(int argc, char *argv[]) {
     outFilename = (str_util::strip_extension(inFilename.GetData()) + ".bin").c_str();
   }
 
-  BytecodeChunk *chunk = nullptr;
-  CompilationUnit unit;
+  BytecodeChunk chunk;
+  DataStorage dataStorage;
+  CompilationUnit unit(&dataStorage);
 
-  return CompilerHelper::buildSourceFile(inFilename, outFilename, &unit, chunk);
+  Result r = CompilerHelper::buildSourceFile(inFilename, &unit, &chunk);
+
+  if (!r.first) {
+    return r;
+  }
+
+  std::ofstream of(outFilename.GetData(), std::ios::out | std::ios::binary);
+
+  if (!of.is_open()) {
+    std::stringstream ss;
+    ss << "Could not write to output file: ";
+    ss << outFilename.GetData();
+
+    return { false, ss.str() };
+  }
+
+
+  Emitter emitter(&chunk);
+  emitter.emit(&of);
+
+  return { true, "" };
 }
 
 int main(int argc, char *argv[]) {
@@ -137,7 +160,7 @@ int main(int argc, char *argv[]) {
     case true:
       return 0;
     case false:
-      std::cout << r.second << std::endl;
+      utf::cout << r.second << std::endl;
       return 1;
   }
 }

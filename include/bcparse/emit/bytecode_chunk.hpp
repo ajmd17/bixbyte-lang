@@ -1,11 +1,14 @@
 #pragma once
 
-#include <bcparse/buildable.hpp>
+#include <bcparse/emit/buildable.hpp>
 
 #include <vector>
+#include <deque>
 #include <memory>
 
 namespace bcparse {
+  class BytecodeStream;
+
   class BytecodeChunk : public Buildable {
   public:
     BytecodeChunk();
@@ -13,10 +16,13 @@ namespace bcparse {
     virtual ~BytecodeChunk() = default;
 
     void append(std::unique_ptr<Buildable> buildable);
+    void prepend(std::unique_ptr<Buildable> buildable);
+    void accept(BytecodeStream *bs) override;
+
     LabelId_t generateLabel();
 
   private:
     std::vector<LabelInfo> m_labels;
-    std::vector<std::unique_ptr<Buildable>> m_buildables;
+    std::deque<std::unique_ptr<Buildable>> m_buildables;
   };
 }

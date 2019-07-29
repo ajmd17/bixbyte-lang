@@ -285,10 +285,10 @@ namespace bcparse {
     SourceStream sourceStream(&sourceFile);
     TokenStream tokenStream(TokenStreamInfo { token.getLocation().getFileName() });
 
-    CompilationUnit unit;
-    unit.getBoundGlobals().setParent(&m_compilationUnit->getBoundGlobals());
+    CompilationUnit subUnit(m_compilationUnit->getDataStorage());
+    subUnit.getBoundGlobals().setParent(&m_compilationUnit->getBoundGlobals());
 
-    Lexer lexer(sourceStream, &tokenStream, &unit);
+    Lexer lexer(sourceStream, &tokenStream, &subUnit);
     lexer.analyze();
 
     while (tokenStream.hasNext()) {

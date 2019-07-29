@@ -86,12 +86,6 @@ namespace bcparse {
         }
       }
     }
-
-
-
-    for (auto tk : m_tokenStream->m_tokens) {
-      std::cout << Token::tokenTypeToString(tk.getTokenClass()) << ":" << tk.getValue() << std::endl;
-    }
   }
 
   bool Lexer::skipWhitespace() {

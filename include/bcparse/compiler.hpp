@@ -10,6 +10,6 @@ namespace bcparse {
     Compiler(AstIterator *iterator, CompilationUnit *compilationUnit);
     Compiler(const Compiler &other);
 
-    void compile(BytecodeChunk *top);
+    void compile(BytecodeChunk *top, bool buildStaticData = true);
   };
 }
