@@ -187,15 +187,6 @@ void heap_sweep(heap_t *heap) {
 }
 
 // ===== Ref Counted Data =====
-// it would be possible (although unsure about performance..)
-//   to pack all counts into a global hashmap, hashed by `ptr`...
-//   this would keep the size down, allow the value to be packed directly into a value_t...
-// typedef struct {
-//   void *ptr;
-//   size_t count;
-// } refcounted_t;
-
-
 //! https://github.com/petewarden/c_hashmap/blob/master/hashmap.c
 
 #define RC_INITIAL_SIZE (256)
@@ -204,32 +195,6 @@ void heap_sweep(heap_t *heap) {
 #define RC_MAP_FULL -2
 #define RC_MAP_OMEM -1
 #define RC_MAP_OK 0
-
-typedef struct {
-  rcmap_key_t key; // pointer = key
-  int in_use;
-
-  size_t count;
-} rcentry_t;
-
-typedef struct {
-  int table_size;
-  int size;
-  rcentry_t *data;
-} rcmap_t;
-
-rcmap_t *rcmap_create() {
-  rcmap_t *map = (rcmap_t*)malloc(sizeof(rcmap_t));
-  map->data = (rcentry_t*)calloc(RC_INITIAL_SIZE, sizeof(rcentry_t));
-  map->table_size = RC_INITIAL_SIZE;
-  map->size = 0;
-  return map;
-}
-
-void rcmap_destroy(rcmap_t *map) {
-  free(map->data);
-  free(map);
-}
 
 uint32_t hash6432shift(uint64_t key) {
   key = (~key) + (key << 18);
@@ -241,29 +206,54 @@ uint32_t hash6432shift(uint64_t key) {
   return key;
 }
 
+typedef struct {
+  rcmap_key_t key;
+  bool used;
+  size_t count; // payload
+} rcentry_t;
+
+typedef struct {
+  size_t tableSize;
+  size_t size;
+  rcentry_t *data;
+} rcmap_t;
+
+rcmap_t *rcmap_create() {
+  rcmap_t *map = (rcmap_t*)malloc(sizeof(rcmap_t));
+  map->data = (rcentry_t*)calloc(RC_INITIAL_SIZE, sizeof(rcentry_t));
+  map->tableSize = RC_INITIAL_SIZE;
+  map->size = 0;
+  return map;
+}
+
+void rcmap_destroy(rcmap_t *map) {
+  free(map->data);
+  free(map);
+}
+
 uint32_t rcmap_hashInt(rcmap_t *map, rcmap_key_t key) {
-  return hash6432shift((uint64_t)key) % map->table_size;
+  return hash6432shift((uint64_t)key) % map->tableSize;
 }
 
 int rcmap_hash(rcmap_t *map, rcmap_key_t key) {
   int curr, i;
 
-  if (map->size >= (map->table_size / 2)) {
+  if (map->size >= (map->tableSize / 2)) {
     return RC_MAP_FULL;
   }
 
   curr = rcmap_hashInt(map, key);
 
   for (i = 0; i < RC_MAX_CHAIN_LENGTH; i++) {
-    if (map->data[curr].in_use == 0) {
+    if (!map->data[curr].used) {
       return curr;
     }
 
-    if (map->data[curr].in_use == 1 && map->data[curr].key == key) {
+    if (map->data[curr].used && map->data[curr].key == key) {
       return curr;
     }
 
-    curr = (curr + 1) % map->table_size;
+    curr = (curr + 1) % map->tableSize;
   }
 
   return RC_MAP_FULL;
@@ -275,18 +265,18 @@ int rcmap_rehash(rcmap_t *map) {
   int i, oldSize;
   rcentry_t *curr, *tmp;
 
-  tmp = (rcentry_t*)calloc(2 * map->table_size, sizeof(rcentry_t));
+  tmp = (rcentry_t*)calloc(2 * map->tableSize, sizeof(rcentry_t));
   curr = map->data;
   map->data = tmp;
 
-  oldSize = map->table_size;
-  map->table_size *= 2;
+  oldSize = map->tableSize;
+  map->tableSize *= 2;
   map->size = 0;
 
   for (i = 0; i < oldSize; i++) {
     int status;
 
-    if (curr[i].in_use == 0) {
+    if (!curr[i].used) {
       continue;
     }
 
@@ -313,9 +303,9 @@ int rcmap_put(rcmap_t *map, rcmap_key_t key, size_t count) {
     index = rcmap_hash(map, key);
   }
 
-  map->data[index].count = count;
   map->data[index].key = key;
-  map->data[index].in_use = 1;
+  map->data[index].count = count;
+  map->data[index].used = true;
   map->size++;
 
   return RC_MAP_OK;
@@ -327,7 +317,7 @@ int rcmap_getPtr(rcmap_t *map, rcmap_key_t key, size_t **out) {
   curr = rcmap_hashInt(map, key);
 
   for (i = 0; i < RC_MAX_CHAIN_LENGTH; i++) {
-    if (map->data[curr].in_use) {
+    if (map->data[curr].used) {
       if (map->data[curr].key == key) {
         *out = &map->data[curr].count;
 
@@ -335,7 +325,7 @@ int rcmap_getPtr(rcmap_t *map, rcmap_key_t key, size_t **out) {
       }
     }
 
-    curr = (curr + 1) % map->table_size;
+    curr = (curr + 1) % map->tableSize;
   }
 
   *out = NULL;
@@ -362,7 +352,7 @@ int rcmap_remove(rcmap_t *map, rcmap_key_t key) {
   curr = rcmap_hashInt(map, key);
 
   for (i = 0; i < RC_MAX_CHAIN_LENGTH; i++) {
-    if (map->data[curr].in_use) {
+    if (map->data[curr].used) {
       if (map->data[curr].key == key) {
         memset(&map->data[curr], 0, sizeof(rcentry_t));
         --map->size;
@@ -371,7 +361,7 @@ int rcmap_remove(rcmap_t *map, rcmap_key_t key) {
       }
     }
 
-    curr = (curr + 1) % map->table_size;
+    curr = (curr + 1) % map->tableSize;
   }
 
   return RC_MAP_MISSING;
@@ -379,6 +369,168 @@ int rcmap_remove(rcmap_t *map, rcmap_key_t key) {
 
 
 // ===== object =====
+
+
+/*
+typedef struct {
+  char *key;
+  bool used;
+  value_t value; // payload
+} objfield_t;
+
+typedef struct {
+  size_t tableSize;
+  size_t size;
+  objfield_t *data;
+} objfieldmap_t;
+
+objfieldmap_t *objfieldmap_create() {
+  objfieldmap_t *map = (objfieldmap_t*)malloc(sizeof(objfieldmap_t));
+  map->data = (objfield_t*)calloc(OBJFIELDMAP_INITIAL_SIZE, sizeof(objfield_t));
+  map->tableSize = OBJFIELDMAP_INITIAL_SIZE;
+  map->size = 0;
+  return map;
+}
+
+void objfieldmap_destroy(objfieldmap_t *map) {
+  free(map->data);
+  free(map);
+}
+
+int objfieldmap_hash(objfieldmap_t *map, char *key) {
+  int curr, i;
+
+  if (map->size >= (map->tableSize / 2)) {
+    return OBJFIELDMAP_FULL;
+  }
+
+  curr = objfieldmap_hashInt(map, key);
+
+  for (i = 0; i < OBJFIELDMAP_CHAIN_LENGTH; i++) {
+    if (!map->data[curr].used) {
+      return curr;
+    }
+
+    if (map->data[curr].used && strcmp(map->data[curr].key, key) == 0) {
+      return curr;
+    }
+
+    curr = (curr + 1) % map->tableSize;
+  }
+
+  return OBJFIELDMAP_FULL;
+}
+
+int objfieldmap_put(objfieldmap_t *map, char *key, value_t value);
+
+int objfieldmap_rehash(objfieldmap_t *map) {
+  int i, oldSize;
+  objfield_t *curr, *tmp;
+
+  tmp = (objfield_t*)calloc(2 * map->tableSize, sizeof(objfield_t));
+  curr = map->data;
+  map->data = tmp;
+
+  oldSize = map->tableSize;
+  map->tableSize *= 2;
+  map->size = 0;
+
+  for (i = 0; i < oldSize; i++) {
+    int status;
+
+    if (!curr[i].used) {
+      continue;
+    }
+
+    status = objfieldmap_put(map, curr[i].key, curr[i].value);
+
+    if (status != OBJFIELDMAP_OK) {
+      return status;
+    }
+  }
+
+  free(curr);
+
+  return OBJFIELDMAP_OK;
+}
+
+int rcmap_put(rcmap_t *map, rcmap_key_t key, size_t count) {
+  int index = rcmap_hash(map, key);
+
+  while (index == RC_MAP_FULL) {
+    if (rcmap_rehash(map) == RC_MAP_OMEM) {
+      return RC_MAP_OMEM;
+    }
+
+    index = rcmap_hash(map, key);
+  }
+
+  map->data[index].key = key;
+  map->data[index].count = count;
+  map->data[index].used = true;
+  map->size++;
+
+  return RC_MAP_OK;
+}
+
+int rcmap_getPtr(rcmap_t *map, rcmap_key_t key, size_t **out) {
+  int curr, i;
+
+  curr = rcmap_hashInt(map, key);
+
+  for (i = 0; i < RC_MAX_CHAIN_LENGTH; i++) {
+    if (map->data[curr].used) {
+      if (map->data[curr].key == key) {
+        *out = &map->data[curr].count;
+
+        return RC_MAP_OK;
+      }
+    }
+
+    curr = (curr + 1) % map->tableSize;
+  }
+
+  *out = NULL;
+
+  return RC_MAP_MISSING;
+}
+
+int rcmap_get(rcmap_t *map, rcmap_key_t key, size_t *out) {
+  size_t *ptr = NULL;
+  int result = rcmap_getPtr(map, key, &ptr);
+
+  if (result == RC_MAP_OK) {
+    *out = *ptr;
+  } else {
+    *out = 0;
+  }
+
+  return result;
+}
+
+int rcmap_remove(rcmap_t *map, rcmap_key_t key) {
+  int curr, i;
+
+  curr = rcmap_hashInt(map, key);
+
+  for (i = 0; i < RC_MAX_CHAIN_LENGTH; i++) {
+    if (map->data[curr].used) {
+      if (map->data[curr].key == key) {
+        memset(&map->data[curr], 0, sizeof(rcentry_t));
+        --map->size;
+
+        return RC_MAP_OK;
+      }
+    }
+
+    curr = (curr + 1) % map->tableSize;
+  }
+
+  return RC_MAP_MISSING;
+}
+
+*/
+
 typedef struct {
   void *ptr;
   // @TODO hashmap of fields?
@@ -833,17 +985,14 @@ enum JUMP_FLAGS {
   JUMP_FLAGS_JGE = 0x4
 };
 
-enum LOAD_CONST_FLAGS {
-  LOAD_FLAGS_NULL = 0,
-  LOAD_FLAGS_I64 = 1,
-  LOAD_FLAGS_U64 = 2,
-  LOAD_FLAGS_F64 = 3,
-  LOAD_FLAGS_BOOL = 4,
-
-  LOAD_FLAGS_PLACEHOLDER5 = 5,
-  LOAD_FLAGS_PLACEHOLDER6 = 6,
-
-  LOAD_FLAGS_RAWDATA = 7
+enum CONST_FLAGS {
+  CONST_FLAGS_NONE = 0x0,
+  CONST_FLAGS_NULL = 0x1,
+  CONST_FLAGS_I64 = 0x2,
+  CONST_FLAGS_U64 = 0x3,
+  CONST_FLAGS_F64 = 0x4,
+  CONST_FLAGS_BOOL = 0x5,
+  CONST_FLAGS_RAWDATA = 0x6
 };
 
 enum CMP_FLAG {
@@ -899,31 +1048,66 @@ enum INSTRUCTIONS { // max: 32 values
   OP_PLACEHOLDER_27 = 27,
   OP_PLACEHOLDER_28 = 28,
   OP_PLACEHOLDER_29 = 29,
-  OP_PLACEHOLDER_30 = 30,
+  OP_JIT = 30,
 
   OP_HALT = 31, // exit program
 };
 
-void interpreter_loop(interpreter_t *it, runtime_t *rt) {
+#define JIT_MODE 0
+#define INTERPRET_MODE 1
+
+#define _(code) \
+  if (INTERPRET_MODE) { \
+    code \
+  } else if (JIT_MODE) { \
+    #str \
+  } \
+
+#define INTERPRET 0
+#define JIT 1
+#define INTERPRETER_MODE Jit
+//#define DECODE(objLoc) \
+#include <bcparse/vm/interpreter_loop.inc.h>
+//#undef DECODE
+#undef INTERPRETER_MODE
+#undef JIT
+#undef INTERPRET
+
+#define INTERPRET 1
+#define JIT 0
+#define INTERPRETER_MODE Interpreter
+//#define DECODE(objLoc)
+#include <bcparse/vm/interpreter_loop.inc.h>
+//#undef DECODE
+#undef INTERPRETER_MODE
+#undef JIT
+#undef INTERPRET
+
+void interpreter_run##INTERPRETER_MODE(interpreter_t *it, runtime_t *rt) {
   uint8_t data, opcode, flags, cache[64];
 
-  // uint8_t *const_data_pool[8];
-  // const_data_pool[LOAD_FLAGS_NULL] = { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x5 };
-  // const_data_pool[LOAD_FLAGS_I64] = { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1 };
-  // const_data_pool[LOAD_FLAGS_U64] = { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2 };
-  // const_data_pool[LOAD_FLAGS_F64] = { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x3 };
-  // const_data_pool[LOAD_FLAGS_BOOL] = { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4 };
-  // const_data_pool[LOAD_FLAGS_RAWDATA] = { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4 };
+#if JIT
+  printf("#define DECODE(loc) datatable_getValue(rt, loc >> 4, loc & 0xF)\n\n");
+
+  printf("int main(int argc, char *argv[]) {\n");
+  printf("runtime_t *rt = runtime_create();\n");
+#endif
 
   while (!interpreter_atEnd(it)) {
+    size_t pcBefore = it->pc;
+
     interpreter_read(it, sizeof(data), &data);
 
     opcode = data >> 3;
     flags = data & 0x7;
 
+#if JIT
+    printf("\n_lbl_%zu:\n", pcBefore);
+#endif
+
     switch (opcode) {
       case OP_NOOP: break;
-      case OP_LOAD: {
+      case OP_LOAD: { // load
         obj_loc_t o;
         interpreter_read(it, sizeof(o), &o);
 
@@ -933,44 +1117,72 @@ void interpreter_loop(interpreter_t *it, runtime_t *rt) {
 
         value_t *v = datatable_getValue(rt->dt, loc, at);
 
+#if JIT
+        printf("value_t *v = DECODE(%#lx);\n", o);
+#endif
+
         switch (flags) {
-          case LOAD_FLAGS_NULL:
-            v->data.raw = NULL;
-            v->metadata = TYPE_POINTER;
+          case CONST_FLAGS_NONE: // ??
+#if INTERPRET // @TODO macro to conditionally output JIT / Code
+            v->data.i64 = 0;
+            v->metadata = TYPE_NONE; // just zero out i guess
+#endif
 
             break;
-          case LOAD_FLAGS_I64: {
+          case CONST_FLAGS_NULL: // loadnull
+#if INTERPRET
+            v->data.raw = NULL;
+            v->metadata = TYPE_POINTER;
+#endif
+
+#if JIT
+            printf("v->data.raw = NULL;\nv->metadata = TYPE_POINTER;\n");
+#endif
+
+            break;
+          case CONST_FLAGS_I64: { // loadi4
             interpreter_read(it, sizeof(int64_t), cache);
             value_setInt(rt, v, *((int64_t*)cache));
 
+            printf("value_setInt(rt, v, %d);\n", *((int64_t*)cache));
+
             break;
           }
-          case LOAD_FLAGS_U64: {
+          case CONST_FLAGS_U64: { // loadu4
             interpreter_read(it, sizeof(uint64_t), cache);
             value_setUint(rt, v, *((uint64_t*)cache));
 
+            printf("value_setUint(rt, v, %d);\n", *((uint64_t*)cache));
+
             break;
           }
-          case LOAD_FLAGS_F64: {
+          case CONST_FLAGS_F64: { // loadd
             interpreter_read(it, sizeof(double), cache);
             value_setDouble(rt, v, *((double*)cache));
 
-            break;
-          }
-          case LOAD_FLAGS_BOOL: {
-            interpreter_read(it, sizeof(uint8_t), cache);
-            value_setBoolean(rt, v, (bool)cache[0]);
+            printf("value_setDouble(rt, v, %0.f);\n", *((double*)cache));
 
             break;
           }
-          case LOAD_FLAGS_RAWDATA: {
+          case CONST_FLAGS_BOOL: { // loadb
+            interpreter_read(it, sizeof(uint8_t), cache);
+            value_setBoolean(rt, v, (bool)cache[0]);
+
+            printf("value_setDouble(rt, v, %d);\n", (bool)cache[0]);
+
+            break;
+          }
+          case CONST_FLAGS_RAWDATA: { // loaddata
             interpreter_read(it, sizeof(uint64_t), cache);
             uint64_t sz = *((uint64_t*)cache);
 
             void *data = malloc(sz); // managed by refcounter
+            printf("void *data = malloc(%d);\n", sz);
+
             interpreter_read(it, sz, data);
 
             value_setRefCounted(rt, v, data);
+            printf("value_setRefCounted(rt, v, data);\n");
 
             break;
           }
@@ -979,7 +1191,7 @@ void interpreter_loop(interpreter_t *it, runtime_t *rt) {
         break;
       }
 
-      case OP_MOV: {
+      case OP_MOV: { // mov
         value_t *left, *right;
 
         obj_loc_t o;
@@ -990,23 +1202,27 @@ void interpreter_loop(interpreter_t *it, runtime_t *rt) {
         obj_loc_parse(o, &loc, &at);
 
         left = datatable_getValue(rt->dt, loc, at);
+        printf("value_t *left = DECODE(%#lx);\n", o);
 
         interpreter_read(it, sizeof(o), &o);
         obj_loc_parse(o, &loc, &at);
 
         right = datatable_getValue(rt->dt, loc, at);
+        printf("value_t *right = DECODE(%#lx);\n", o);
 
         if (at & AT_REG) {
           // optimization
           *left = *right;
+          printf("*left = *right;\n");
         } else {
           value_copyValue(rt, left, right);
+          printf("value_copyValue(rt, left, right);\n");
         }
 
         break;
       }
 
-      case OP_CMP: {
+      case OP_CMP: { // cmp
         value_t *left, *right;
 
         obj_loc_t o;
@@ -1026,16 +1242,16 @@ void interpreter_loop(interpreter_t *it, runtime_t *rt) {
         union { int i; double d; } cacheval;
 
         switch (flags) {
-          case CMP_FLAG_F64_L:
+          case CMP_FLAG_F64_L: // cmpdl
             cacheval.d = left->data.dbl - right->data.i64;
             goto setDouble;
-          case CMP_FLAG_F64_R:
+          case CMP_FLAG_F64_R: // cmpdr
             cacheval.d = left->data.i64 - right->data.dbl;
             goto setDouble;
-          case CMP_FLAG_F64_LR:
+          case CMP_FLAG_F64_LR: // cmpd
             cacheval.d = left->data.dbl - right->data.dbl;
             goto setDouble;
-          default:
+          default: // cmp
             cacheval.i = left->data.i64 - right->data.i64;
             goto setInt;
         }
@@ -1048,7 +1264,7 @@ void interpreter_loop(interpreter_t *it, runtime_t *rt) {
         break;
       }
 
-      case OP_JMP: {
+      case OP_JMP: { // jmp
         value_t *v;
 
         obj_loc_t o;
@@ -1061,22 +1277,22 @@ void interpreter_loop(interpreter_t *it, runtime_t *rt) {
         v = datatable_getValue(rt->dt, loc, at);
 
         switch (flags) {
-          case JUMP_FLAGS_JE:
+          case JUMP_FLAGS_JE: // je
             if (~it->flags & INTERPRETER_FLAGS_EQUAL) {
               goto noSeek;
             }
             break;
-          case JUMP_FLAGS_JNE:
+          case JUMP_FLAGS_JNE: // jne
             if (it->flags & INTERPRETER_FLAGS_EQUAL) {
               goto noSeek;
             }
             break;
-          case JUMP_FLAGS_JG:
+          case JUMP_FLAGS_JG: // jg
             if (~it->flags & INTERPRETER_FLAGS_GREATER) {
               goto noSeek;
             }
             break;
-          case JUMP_FLAGS_JGE:
+          case JUMP_FLAGS_JGE: // jge
             if (~it->flags & (INTERPRETER_FLAGS_GREATER | INTERPRETER_FLAGS_EQUAL)) {
               goto noSeek;
             }
@@ -1084,21 +1300,88 @@ void interpreter_loop(interpreter_t *it, runtime_t *rt) {
         }
 
         interpreter_seek(it, value_getUint(v));
+        //printf("goto _lbl_%zu;\n", value_getUint(v));
+
       noSeek:
         break;
       }
 
-      case OP_PUSH: {
-        storage_t stack = rt->dt->storage[AT_LOCAL];
+      case OP_PUSH: { // push
+        storage_t *stack = &rt->dt->storage[AT_LOCAL];
 
-        obj_loc_t o;
-        loc_28_t loc;
-        archtype_t at;
+        switch (flags) {
+          case CONST_FLAGS_NONE: { // push -- load value_t to push to stack
+            obj_loc_t o;
+            loc_28_t loc;
+            archtype_t at;
 
-        interpreter_read(it, sizeof(o), &o);
-        obj_loc_parse(o, &loc, &at);
+            interpreter_read(it, sizeof(o), &o);
+            obj_loc_parse(o, &loc, &at);
 
-        value_copyValue(rt, &stack.data[stack.len++], datatable_getValue(rt->dt, loc, at));
+            value_copyValue(rt, stack->data[stack->len], datatable_getValue(rt->dt, loc, at));
+
+            break;
+          }
+          // shortcuts for pushing constants directly, rather than using multiple instructions
+          // @TODO: make these values be copied from a constant pool, rather than by recreating.
+          case CONST_FLAGS_NULL: { // pushnull
+            value_t *v = &stack->data[stack->len];
+            v->data.raw = NULL;
+            v->metadata = TYPE_POINTER;
+
+            break;
+          }
+          case CONST_FLAGS_I64: { // pushi4
+            interpreter_read(it, sizeof(int64_t), cache);
+            value_setInt(rt, &stack->data[stack->len], *((int64_t*)cache));
+
+            printf("value_setInt(rt, &stack->data[stack->len], %d);\n", *((int64_t*)cache));
+
+            break;
+          }
+          case CONST_FLAGS_U64: { // pushu4
+            interpreter_read(it, sizeof(uint64_t), cache);
+            value_setUint(rt, &stack->data[stack->len], *((uint64_t*)cache));
+
+            printf("value_setUint(rt, &stack->data[stack->len], %d);\n", *((uint64_t*)cache));
+
+            break;
+          }
+          case CONST_FLAGS_F64: { // pushd
+            interpreter_read(it, sizeof(double), cache);
+            value_setDouble(rt, &stack->data[stack->len], *((double*)cache));
+
+            printf("value_setDouble(rt, &stack->data[stack->len], %0.f);\n", *((double*)cache));
+
+            break;
+          }
+          case CONST_FLAGS_BOOL: { // pushb
+            interpreter_read(it, sizeof(uint8_t), cache);
+            value_setBoolean(rt, &stack->data[stack->len], (bool)cache[0]);
+
+            printf("value_setDouble(rt, &stack->data[stack->len], %d);\n", (bool)cache[0]);
+
+            break;
+          }
+          case CONST_FLAGS_RAWDATA: { // pushdata
+            interpreter_read(it, sizeof(uint64_t), cache);
+            uint64_t sz = *((uint64_t*)cache);
+
+            void *data = malloc(sz); // managed by refcounter
+            printf("void *data = malloc(%d);\n", sz);
+
+            interpreter_read(it, sz, data);
+
+            value_setRefCounted(rt, &stack->data[stack->len], data);
+            printf("value_setRefCounted(rt, &stack->data[stack->len], data);\n");
+
+            break;
+          }
+        }
+
+        ++stack->len;
+
+        printf("++stack->len;\n");
 
         break;
       }
@@ -1271,11 +1554,115 @@ void interpreter_loop(interpreter_t *it, runtime_t *rt) {
 
       // ...
 
+      case OP_JIT: {
+        // @jit_begin("sum", memoized=true, args=1)
+        // ... some instructions
+        // @jit_end ; internally -- tags `sum` as $d6
+
+        // -> OP_JIT JIT_FLAG_BEGIN | JIT_FLAG_MEMOIZE ; memoize for when fn is called ?? idk
+        // ->   1 ; args to hash for memoize
+        // ->   $d6 ; location of native fn to store at
+        // -> ... some instructions
+        // -> OP_JIT JIT_FLAG_END
+
+        // ; raw, unoptimized code
+
+        // -> OP_CALL #{_System_arrayCreate} ; construct an array -- now stored in $r0
+        // -> OP_PUSH $r0 ; push new array to stack -- stored as local variable
+
+        // -> OP_PUSH $s[-1] ; push last stack item to top, duplicating
+        // -> OP_LOAD | CONST_FLAG_U64 $r0 0
+        // -> OP_PUSH $r0 ; push 0 to stack
+        // -> OP_LOAD | CONST_FLAG_F64 $r0 3.5
+        // -> OP_PUSH $r0 ; push 3.5 to stack
+        // -> OP_CALL #{_System_arraySetIndex} ; set array[0] to 3.5
+        // -> OP_POP 3
+
+        // -> OP_PUSH $s[-1] ; push last stack item to top, duplicating
+        // -> OP_LOAD | CONST_FLAG_U64 $r0 0
+        // -> OP_PUSH $r0 ; push 0 to stack
+        // -> OP_LOAD | CONST_FLAG_F64 $r0 4.6
+        // -> OP_PUSH $r0 ; push 4.6 to stack
+        // -> OP_CALL #{_System_arraySetIndex} ; set array[0] to 4.6
+        // -> OP_POP 3
+
+        // -> OP_CALL #{sum} ; call native fn
+
+        // =====
+        // ; optimized, first pass
+
+        // -> OP_CALL #{_System_arrayCreate} ; construct an array -- now stored in $r0
+        // -> OP_PUSH $r0 ; push new array to stack -- stored as local variable
+
+        // -> OP_PUSH $s[-1] ; push last stack item to top, duplicating
+        // -> OP_PUSH | CONST_FLAG_U64 0
+        // -> OP_PUSH | CONST_FLAG_F64 3.5 ; push 3.5 to stack
+        // -> OP_CALL #{_System_arraySetIndex} ; set array[0] to 3.5
+        // -> OP_POP 3
+
+        // -> OP_PUSH $s[-1] ; push last stack item to top, duplicating
+        // -> OP_PUSH | CONST_FLAG_U64 0 ; push 0 to stack
+        // -> OP_PUSH | CONST_FLAG_F64 4.6 ; push 4.6 to stack
+        // -> OP_CALL #{_System_arraySetIndex} ; set array[0] to 4.6
+        // -> OP_POP 3
+
+        // -> OP_CALL #{sum} ; call native fn
+
+
+        // built a native_function_t jitFunction_<addr>
+        // @todo: function memoization? maybe have an argument for X number of stack parameters
+        // to take a hash of and lookup a memoized function based on this?
+
+        native_function_t jitFunction;
+
+#if JIT
+        return;
+#else if INTERPRET
+
+        if (flags & JIT_FLAG_BEGIN) { // begin
+          char *buf; // C source code buffer?
+          uint8_t jitOp = OP_JIT;
+          uint8_t jitFlags = flags;
+
+
+          // set hash to be hash of (it->pc)
+          // as well as hashcode of X number of stack items
+          // this could be useful for memoizing function arguments
+          //char hash[64];
+
+          // while (!interpreter_atEnd(it)) {
+          //   interpreter_read(it, &jitOp, &jitFlags);
+
+          //   if (flags & JIT_FLAG_MEMOIZE) {
+          //     jit_buildMemoized(rt->jit, jitOp, jitFlags, &buf);
+          //   } else {
+          //     // default -- does not expand CMP and conditionals
+          //     jit_build(rt->jit, jitOp, jitFlags, &buf);
+          //   }
+          // }
+          interpreter_runJit(it);
+
+          // first pass, run C compiler, load obj file, lookup function `jitFunction_<hash>`
+
+
+          jitmap_set(rt->jit->map, )
+
+        }
+#endif
+
+        // move value_t to static data that holds jitFunction
+
+        break;
+      }
+
       case OP_HALT:
         puts("\n\nProgram Terminated\n\n");
         break;
     }
   }
+
+  printf("\nruntime_destroy(rt);\n");
+  printf("return 0;\n}\n");
 }
 
 // ===== Native function arguments =====
@@ -1438,7 +1825,7 @@ int main(int argc, char *argv[]) {
         iData.len += sizeof(u##sz); \
       } while (0)
 
-    PUT_BYTES(8, makeInstruction(OP_LOAD, LOAD_FLAGS_I64));
+    PUT_BYTES(8, makeInstruction(OP_LOAD, CONST_FLAGS_I64));
     PUT_BYTES(32, obj_loc_make(1, AT_ABS | AT_DATA));
     PUT_BYTES(64, 255);
 
