@@ -1,0 +1,76 @@
+// self-hosting compiler prototype
+
+@module "lexer" {
+
+// storage for lexer data
+@data "data" // bytes
+@data "position"
+@data "size"
+
+@function "gettoken" read=0 {
+  mov $r[0] #{position}
+  mov $r[1] #{size}
+  cmp $r[0] $r[1]
+  jge outOfBounds
+
+  @if #{read} {
+    // increment position
+    loadi4 $r[1] 1
+    add $r[0] $r[1] // <-- add position + 1
+    mov #{position} $r[0] // <-- store new position
+  }
+
+  // load data @ $r[0] into $r[0]
+  push $r[0] // <-- push position
+  push #{data} // <-- push pointer to data
+  call #{_System_memaccess} // get data[position]
+  pop // <-- pop pointer to data
+  pop // <-- pop position
+
+  mov $r[0] // <-- result of _System_memaccess
+  jmp done // <-- return it
+  
+outOfBounds:
+  loadnull $r[0] // M-- return null
+
+done:
+  ret
+}
+
+@function "read" numbytes=1 {
+  mov $r[0] #{position}
+  mov $r[1] #{size}
+  cmp $r[0] $r[1]
+  jge outOfBounds
+
+  // increment position
+  loadi4 $r[1] #{numbytes}
+  add $r[0] $r[1] // <-- add position + 1
+  mov #{position} $r[0] // <-- store new position
+
+
+  mov $r[0] // <-- result of _System_memaccess
+  jmp done // <-- return it
+  
+outOfBounds:
+  loadnull $r[0] // M-- return null
+
+done:
+  ret
+}
+
+@function "lex" {
+  @call "gettoken"
+}
+
+@function "skipWhitespace" {
+
+}
+
+} // lexer
+
+@module "parser" {
+} // parser
+
+@module "builder" {
+} // builder
