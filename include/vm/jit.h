@@ -6,25 +6,42 @@ typedef struct runtime runtime_t;
 
 #include <stdint.h>
 
+#define BB8_JIT_BUFFER_SIZE 1024*1024 // 1MB
+#define BB8_JIT_CMD_SIZE 1024*8
+
+#define BB8_JIT_APPEND(csrc, ...) \
+  snprintf(bb8_cmdStream, BB8_JIT_CMD_SIZE, csrc, __VA_ARGS__)
+
+#define BB8_JIT_HEADER \
+  "#define DECODE(loc) datatable_getValue(rt, loc >> 4, loc & 0xF)\n\n" \
+  "int main(int argc, char *argv[]) {\n" \
+  "runtime_t *rt = runtime_create();\n"
+
+#define BB8_LABEL(pc) \
+  snprintf(bb8_cmdStream, BB8_JIT_CMD_SIZE, "\n_lbl_%zu:\n", pcBefore)
+
+static char bb8_jitStream[BB8_JIT_BUFFER_SIZE];
+
 void jit_run(interpreter_t *it, runtime_t *rt) {
   uint8_t data, opcode, flags, cache[64];
 
-  printf("#define DECODE(loc) datatable_getValue(rt, loc >> 4, loc & 0xF)\n\n");
-
-  printf("int main(int argc, char *argv[]) {\n");
-  printf("runtime_t *rt = runtime_create();\n");
+  memset(bb8_jitStream, '\0', BB8_JIT_BUFFER_SIZE);
+  strcat(bb8_jitStream, BB8_JIT_HEADER);
 
   while (!interpreter_atEnd(it)) {
+    char bb8_cmdStream[BB8_JIT_CMD_SIZE];
+    memset(bb8_cmdStream, '\0', BB8_JIT_CMD_SIZE);
+    
     size_t pcBefore = it->pc;
 
-    printf("{\n");
+    BB8_JIT_APPEND("{\n");
 
     interpreter_read(it, sizeof(data), &data);
 
     opcode = data >> 3;
     flags = data & 0x7;
 
-    printf("\n_lbl_%zu:\n", pcBefore);
+    BB8_LABEL(pcBefore);
 
     switch (opcode) {
       case OP_NOOP: break;
@@ -36,35 +53,35 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
         archtype_t at;
         obj_loc_parse(o, &loc, &at);
 
-        printf("value_t *v = DECODE(%#lx);\n", o);
+        BB8_JIT_APPEND("value_t *v = DECODE(%#lx);\n", o);
 
         switch (flags) {
           case CONST_FLAGS_NONE: // ??
             break;
           case CONST_FLAGS_NULL: // loadnull
-            printf("v->data.raw = NULL;\nv->metadata = TYPE_POINTER;\n");
+            BB8_JIT_APPEND("v->data.raw = NULL;\nv->metadata = TYPE_POINTER;\n");
             break;
           case CONST_FLAGS_I64: { // loadi4
             interpreter_read(it, sizeof(int64_t), cache);
-            printf("value_setInt(rt, v, %d);\n", *((int64_t*)cache));
+            BB8_JIT_APPEND("value_setInt(rt, v, %d);\n", *((int64_t*)cache));
 
             break;
           }
           case CONST_FLAGS_U64: { // loadu4
             interpreter_read(it, sizeof(uint64_t), cache);
-            printf("value_setUint(rt, v, %d);\n", *((uint64_t*)cache));
+            BB8_JIT_APPEND("value_setUint(rt, v, %d);\n", *((uint64_t*)cache));
 
             break;
           }
           case CONST_FLAGS_F64: { // loadd
             interpreter_read(it, sizeof(double), cache);
-            printf("value_setDouble(rt, v, %0.f);\n", *((double*)cache));
+            BB8_JIT_APPEND("value_setDouble(rt, v, %0.f);\n", *((double*)cache));
 
             break;
           }
           case CONST_FLAGS_BOOL: { // loadb
             interpreter_read(it, sizeof(uint8_t), cache);
-            printf("value_setDouble(rt, v, %d);\n", (bool)cache[0]);
+            BB8_JIT_APPEND("value_setDouble(rt, v, %d);\n", (bool)cache[0]);
 
             break;
           }
@@ -75,21 +92,21 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
             void *data = malloc(sz);
             interpreter_read(it, sz, data);
 
-            printf("void *data = malloc(%d);\n", sz);
+            BB8_JIT_APPEND("void *data = malloc(%d);\n", sz);
+            BB8_JIT_APPEND("static unsigned char _data_%d = { ", it->pc);
 
-            printf("static unsigned char _data_%d = { ", it->pc);
             while (sz) {
-              printf("%#lx", ((unsigned char*)data)[sz - 1]);
+              BB8_JIT_APPEND("%#lx", ((unsigned char*)data)[sz - 1]);
 
               if (sz > 1) {
-                printf(", ");
+                BB8_JIT_APPEND(", ");
               }
 
               --sz;
             }
-            printf(" };\n");
 
-            printf("value_setRefCounted(rt, v, data);\n");
+            BB8_JIT_APPEND(" };\n");
+            BB8_JIT_APPEND("value_setRefCounted(rt, v, data);\n");
 
             free(data);
 
@@ -105,16 +122,16 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
 
         interpreter_read(it, sizeof(o), &o);
 
-        printf("value_t *left = DECODE(%#lx);\n", o);
+        BB8_JIT_APPEND("value_t *left = DECODE(%#lx);\n", o);
 
         interpreter_read(it, sizeof(o), &o);
 
-        printf("value_t *right = DECODE(%#lx);\n", o);
+        BB8_JIT_APPEND("value_t *right = DECODE(%#lx);\n", o);
 
         if (at & AT_REG) {
-          printf("*left = *right;\n");
+          BB8_JIT_APPEND("*left = *right;\n");
         } else {
-          printf("value_copyValue(rt, left, right);\n");
+          BB8_JIT_APPEND("value_copyValue(rt, left, right);\n");
         }
 
         break;
@@ -126,32 +143,32 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
         interpreter_read(it, sizeof(left), &left);
         interpreter_read(it, sizeof(right), &right);
 
-        printf("value_t *left = DECODE(%#lx), *right = DECODE(%#lx)", left, right);
-
-        printf("union { int i; double d; } cacheval;\n");
+        BB8_JIT_APPEND("value_t *left = DECODE(%#lx), *right = DECODE(%#lx)", left, right);
+        BB8_JIT_APPEND("union { int i; double d; } cacheval;\n");
 
         switch (flags) {
           case CMP_FLAG_F64_L: // cmpdl
-            printf("cacheval.d = left->data.dbl - right->data.i64;\n"
+            BB8_JIT_APPEND("cacheval.d = left->data.dbl - right->data.i64;\n"
               "it->flags = ((0 < cacheval.d) - (cacheval.d < 0)) + 1;\n");
             break;
           case CMP_FLAG_F64_R: // cmpdr
-            printf("cacheval.d = left->data.i64 - right->data.dbl;\n"
+            BB8_JIT_APPEND("cacheval.d = left->data.i64 - right->data.dbl;\n"
               "it->flags = ((0 < cacheval.d) - (cacheval.d < 0)) + 1;\n");
             break;
           case CMP_FLAG_F64_LR: // cmpd
-            printf("cacheval.d = left->data.dbl - right->data.dbl;\n"
+            BB8_JIT_APPEND("cacheval.d = left->data.dbl - right->data.dbl;\n"
               "it->flags = ((0 < cacheval.d) - (cacheval.d < 0)) + 1;\n");
             break;
           default: // cmp
-            printf("cacheval.i = left->data.i64 - right->data.i64;\n"
+            BB8_JIT_APPEND("cacheval.i = left->data.i64 - right->data.i64;\n"
               "it->flags = ((0 < cacheval.i) - (cacheval.i < 0)) + 1;\n");
             break;
         }
+ 
+        break;
       }
 
       case OP_JMP: { // jmp
-        assert(false && "Jumps not working yet in JIT, need computed GOTO");
         value_t *v;
 
         obj_loc_t o;
@@ -161,40 +178,35 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
         interpreter_read(it, sizeof(o), &o);
         obj_loc_parse(o, &loc, &at);
 
-        v = datatable_getValue(rt->dt, loc, at);
+        BB8_JIT_APPEND("value_t *jmpLoc_%zu = DECODE(%#lx);\n", o);
+
+        char jmpEndLabelName[64] = { '\0' };
+        snprintf(jmpEndLabelName, 64, "_jmp_%zu_end", it->pc);
 
         switch (flags) {
           case JUMP_FLAGS_JE: // je
-            if (~it->flags & INTERPRETER_FLAGS_EQUAL) {
-              goto noSeek;
-            }
+            BB8_JIT_APPEND("\nif (~it->flags & INTERPRETER_FLAGS_EQUAL) goto %s;\n\n", jmpEndLabelName);
             break;
           case JUMP_FLAGS_JNE: // jne
-            if (it->flags & INTERPRETER_FLAGS_EQUAL) {
-              goto noSeek;
-            }
+            BB8_JIT_APPEND("\nif (it->flags & INTERPRETER_FLAGS_EQUAL) goto %s;\n\n", jmpEndLabelName);
             break;
           case JUMP_FLAGS_JG: // jg
-            if (~it->flags & INTERPRETER_FLAGS_GREATER) {
-              goto noSeek;
-            }
+            BB8_JIT_APPEND("\nif (~it->flags & INTERPRETER_FLAGS_GREATER) goto %s;\n\n", jmpEndLabelName);
             break;
           case JUMP_FLAGS_JGE: // jge
-            if (~it->flags & (INTERPRETER_FLAGS_GREATER | INTERPRETER_FLAGS_EQUAL)) {
-              goto noSeek;
-            }
+            BB8_JIT_APPEND("\nif (~it->flags & (INTERPRETER_FLAGS_GREATER | INTERPRETER_FLAGS_EQUAL)) goto %s;\n\n", jmpEndLabelName);
             break;
         }
 
-        interpreter_seek(it, value_getUint(v));
+        BB8_APPEND("\ngoto *((void*)value_getUint(jmpLoc_%zu));\n", o); // Need computed GOTO
         //printf("goto _lbl_%zu;\n", value_getUint(v));
+        BB8_APPEND("\n%s:\n", jmpEndLabelName);
 
-      noSeek:
         break;
       }
 
       case OP_PUSH: { // push
-        storage_t *stack = &rt->dt->storage[AT_LOCAL];
+        BB8_APPEND("storage_t *stack = &rt->dt->storage[AT_LOCAL];\n");
 
         switch (flags) {
           case CONST_FLAGS_NONE: { // push -- load value_t to push to stack
@@ -205,48 +217,40 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
             interpreter_read(it, sizeof(o), &o);
             obj_loc_parse(o, &loc, &at);
 
-            value_copyValue(rt, stack->data[stack->len], datatable_getValue(rt->dt, loc, at));
+            BB8_APPEND("value_copyValue(rt, stack->data[stack->len], DECODE(%#lx));\n", o);
 
             break;
           }
           // shortcuts for pushing constants directly, rather than using multiple instructions
           // @TODO: make these values be copied from a constant pool, rather than by recreating.
           case CONST_FLAGS_NULL: { // pushnull
-            value_t *v = &stack->data[stack->len];
-            v->data.raw = NULL;
-            v->metadata = TYPE_POINTER;
+            BB8_APPEND("value_t *v = &stack->data[stack->len];\n");
+            BB8_APPEND("v->data.raw = NULL;\n");
+            BB8_APPEND("v->metadata = TYPE_POINTER;\n");
 
             break;
           }
           case CONST_FLAGS_I64: { // pushi4
             interpreter_read(it, sizeof(int64_t), cache);
-            value_setInt(rt, &stack->data[stack->len], *((int64_t*)cache));
-
-            printf("value_setInt(rt, &stack->data[stack->len], %d);\n", *((int64_t*)cache));
+            BB8_APPEND("value_setInt(rt, &stack->data[stack->len], %d);\n", *((int64_t*)cache));
 
             break;
           }
           case CONST_FLAGS_U64: { // pushu4
             interpreter_read(it, sizeof(uint64_t), cache);
-            value_setUint(rt, &stack->data[stack->len], *((uint64_t*)cache));
-
-            printf("value_setUint(rt, &stack->data[stack->len], %d);\n", *((uint64_t*)cache));
+            BB8_APPEND("value_setUint(rt, &stack->data[stack->len], %d);\n", *((uint64_t*)cache));
 
             break;
           }
           case CONST_FLAGS_F64: { // pushd
             interpreter_read(it, sizeof(double), cache);
-            value_setDouble(rt, &stack->data[stack->len], *((double*)cache));
-
-            printf("value_setDouble(rt, &stack->data[stack->len], %0.f);\n", *((double*)cache));
+            BB8_APPEND("value_setDouble(rt, &stack->data[stack->len], %0.f);\n", *((double*)cache));
 
             break;
           }
           case CONST_FLAGS_BOOL: { // pushb
             interpreter_read(it, sizeof(uint8_t), cache);
-            value_setBoolean(rt, &stack->data[stack->len], (bool)cache[0]);
-
-            printf("value_setDouble(rt, &stack->data[stack->len], %d);\n", (bool)cache[0]);
+            BB8_APPEND("value_setDouble(rt, &stack->data[stack->len], %d);\n", (bool)cache[0]);
 
             break;
           }
@@ -255,37 +259,33 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
             uint64_t sz = *((uint64_t*)cache);
 
             void *data = malloc(sz); // managed by refcounter
-            printf("void *data = malloc(%d);\n", sz);
+            BB8_APPEND("void *data = malloc(%d); /* RC */\n", sz);
 
             interpreter_read(it, sz, data);
 
-            value_setRefCounted(rt, &stack->data[stack->len], data);
-            printf("value_setRefCounted(rt, &stack->data[stack->len], data);\n");
+            BB8_APPEND("value_setRefCounted(rt, &stack->data[stack->len], data);\n");
+
+            free(data);
 
             break;
           }
         }
 
-        ++stack->len;
-
-        printf("++stack->len;\n");
+        BB8_APPEND("++stack->len;\n");
 
         break;
       }
 
       case OP_POP: {
-        // assert(stack.len != 0);
-
-        storage_t *s = &rt->dt->storage[AT_LOCAL];
-
         interpreter_read(it, sizeof(uint16_t), cache);
         uint16_t sz = *((uint16_t*)cache);
 
         //rt->dt->storage[AT_LOCAL].len -= sz;
-
-        while (sz--) { // required to call free() on malloc'd objects
-          value_destroy(rt, &s->data[--s->len]);
-        }
+        BB8_APPEND("storage_t *s = &rt->dt->storage[AT_LOCAL];\n");
+        BB8_APPEND("uint16_t sz = %d;\n", sz);
+        BB8_APPEND("while (sz--) {\n");
+        BB8_APPEND("  value_destroy(rt, &s->data[--s->len]);\n");
+        BB8_APPEND("}\n");
 
         break;
       }
@@ -295,8 +295,6 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
       case OP_MUL:
       case OP_DIV:
       case OP_MOD: {
-        value_t *left, *right;
-
         obj_loc_t o;
         loc_28_t loc;
         archtype_t at;
@@ -304,49 +302,49 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
         interpreter_read(it, sizeof(o), &o);
         obj_loc_parse(o, &loc, &at);
 
-        left = datatable_getValue(rt->dt, loc, at);
+        BB8_APPEND("value_t *left = DECODE(%#lx);\n", o);
 
         interpreter_read(it, sizeof(o), &o);
         obj_loc_parse(o, &loc, &at);
 
-        right = datatable_getValue(rt->dt, loc, at);
+        BB8_APPEND("value_t *right = DECODE(%#lx);\n", o);
 
         switch (opcode) {
           case OP_ADD:
             switch (flags) {
-              case CMP_FLAG_F64_L:  left->data.dbl = left->data.dbl + right->data.i64; break;
-              case CMP_FLAG_F64_R:  left->data.i64 = left->data.i64 + right->data.dbl; break;
-              case CMP_FLAG_F64_LR: left->data.dbl = left->data.dbl + right->data.dbl; break;
-              default:              left->data.i64 = left->data.i64 + right->data.i64; break;
+              case CMP_FLAG_F64_L:  BB8_APPEND("left->data.dbl = left->data.dbl + right->data.i64;\n"); break;
+              case CMP_FLAG_F64_R:  BB8_APPEND("left->data.i64 = left->data.i64 + right->data.dbl;\n"); break;
+              case CMP_FLAG_F64_LR: BB8_APPEND("left->data.dbl = left->data.dbl + right->data.dbl;\n"); break;
+              default:              BB8_APPEND("left->data.i64 = left->data.i64 + right->data.i64;\n"); break;
             }
             break;
           case OP_SUB:
             switch (flags) {
-              case CMP_FLAG_F64_L:  left->data.dbl = left->data.dbl - right->data.i64; break;
-              case CMP_FLAG_F64_R:  left->data.i64 = left->data.i64 - right->data.dbl; break;
-              case CMP_FLAG_F64_LR: left->data.dbl = left->data.dbl - right->data.dbl; break;
-              default:              left->data.i64 = left->data.i64 - right->data.i64; break;
+              case CMP_FLAG_F64_L:  BB8_APPEND("left->data.dbl = left->data.dbl - right->data.i64;\n"); break;
+              case CMP_FLAG_F64_R:  BB8_APPEND("left->data.i64 = left->data.i64 - right->data.dbl;\n"); break;
+              case CMP_FLAG_F64_LR: BB8_APPEND("left->data.dbl = left->data.dbl - right->data.dbl;\n"); break;
+              default:              BB8_APPEND("left->data.i64 = left->data.i64 - right->data.i64;\n"); break;
             }
             break;
           case OP_MUL:
             switch (flags) {
-              case CMP_FLAG_F64_L:  left->data.dbl = left->data.dbl * right->data.i64; break;
-              case CMP_FLAG_F64_R:  left->data.i64 = left->data.i64 * right->data.dbl; break;
-              case CMP_FLAG_F64_LR: left->data.dbl = left->data.dbl * right->data.dbl; break;
-              default:              left->data.i64 = left->data.i64 * right->data.i64; break;
+              case CMP_FLAG_F64_L:  BB8_APPEND("left->data.dbl = left->data.dbl * right->data.i64;\n"); break;
+              case CMP_FLAG_F64_R:  BB8_APPEND("left->data.i64 = left->data.i64 * right->data.dbl;\n"); break;
+              case CMP_FLAG_F64_LR: BB8_APPEND("left->data.dbl = left->data.dbl * right->data.dbl;\n"); break;
+              default:              BB8_APPEND("left->data.i64 = left->data.i64 * right->data.i64;\n"); break;
             }
             break;
           // @TODO: div by zero catch?
           case OP_DIV:
             switch (flags) {
-              case CMP_FLAG_F64_L:  left->data.dbl = left->data.dbl / right->data.i64; break;
-              case CMP_FLAG_F64_R:  left->data.i64 = left->data.i64 / right->data.dbl; break;
-              case CMP_FLAG_F64_LR: left->data.dbl = left->data.dbl / right->data.dbl; break;
-              default:              left->data.i64 = left->data.i64 / right->data.i64; break;
+              case CMP_FLAG_F64_L:  BB8_APPEND("left->data.dbl = left->data.dbl / right->data.i64;\n"); break;
+              case CMP_FLAG_F64_R:  BB8_APPEND("left->data.i64 = left->data.i64 / right->data.dbl;\n"); break;
+              case CMP_FLAG_F64_LR: BB8_APPEND("left->data.dbl = left->data.dbl / right->data.dbl;\n"); break;
+              default:              BB8_APPEND("left->data.i64 = left->data.i64 / right->data.i64;\n"); break;
             }
             break;
           case OP_MOD:
-            left->data.i64 = left->data.i64 % right->data.i64;
+            BB8_APPEND("left->data.i64 = left->data.i64 % right->data.i64;\n");
             break;
         }
 
@@ -358,8 +356,6 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
       case OP_OR:
       case OP_SHL:
       case OP_SHR: {
-        value_t *left, *right;
-
         obj_loc_t o;
         loc_28_t loc;
         archtype_t at;
@@ -367,27 +363,25 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
         interpreter_read(it, sizeof(o), &o);
         obj_loc_parse(o, &loc, &at);
 
-        left = datatable_getValue(rt->dt, loc, at);
+        BB8_APPEND("value_t *left = DECODE(%#lx);\n", o);
 
         interpreter_read(it, sizeof(o), &o);
         obj_loc_parse(o, &loc, &at);
 
-        right = datatable_getValue(rt->dt, loc, at);
+        BB8_APPEND("value_t *right = DECODE(%#lx);\n", o);
 
         switch (opcode) {
-          case OP_XOR: left->data.i64 = left->data.i64 ^ right->data.i64; break;
-          case OP_AND: left->data.i64 = left->data.i64 & right->data.i64; break;
-          case OP_OR:  left->data.i64 = left->data.i64 | right->data.i64; break;
-          case OP_SHL: left->data.i64 = left->data.i64 << right->data.i64; break;
-          case OP_SHR: left->data.i64 = left->data.i64 >> right->data.i64; break;
+          case OP_XOR: BB8_APPEND("left->data.i64 = left->data.i64 ^ right->data.i64;\n"); break;
+          case OP_AND: BB8_APPEND("left->data.i64 = left->data.i64 & right->data.i64;\n"); break;
+          case OP_OR:  BB8_APPEND("left->data.i64 = left->data.i64 | right->data.i64;\n"); break;
+          case OP_SHL: BB8_APPEND("left->data.i64 = left->data.i64 << right->data.i64;\n"); break;
+          case OP_SHR: BB8_APPEND("left->data.i64 = left->data.i64 >> right->data.i64;\n"); break;
         }
 
         break;
       }
 
       case OP_NEG: {
-        value_t *left;
-
         obj_loc_t o;
         loc_28_t loc;
         archtype_t at;
@@ -395,19 +389,15 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
         interpreter_read(it, sizeof(o), &o);
         obj_loc_parse(o, &loc, &at);
 
-        left = datatable_getValue(rt->dt, loc, at);
-
         switch (flags) {
-          case CMP_FLAG_F64_L:  left->data.dbl = -left->data.dbl; break;
-          default:              left->data.i64 = -left->data.i64; break;
+          case CMP_FLAG_F64_L:  BB8_APPEND("DECODE(%#lx)->data.dbl *= -1;\n", o); break;
+          default:              BB8_APPEND("DECODE(%#lx)->data.i64 *= -1;\n", o); break;
         }
 
         break;
       }
 
       case OP_NOT: {
-        value_t *left;
-
         obj_loc_t o;
         loc_28_t loc;
         archtype_t at;
@@ -415,8 +405,7 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
         interpreter_read(it, sizeof(o), &o);
         obj_loc_parse(o, &loc, &at);
 
-        left = datatable_getValue(rt->dt, loc, at);
-        left->data.i64 = ~left->data.i64;
+        BB8_APPEND("DECODE(%#lx)->data.i64 = ~DECODE(%#lx)->data.i64;\n", o, o);
 
         break;
       }
@@ -429,9 +418,7 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
         interpreter_read(it, sizeof(o), &o);
         obj_loc_parse(o, &loc, &at);
 
-        value_t result = value_invoke(rt, datatable_getValue(rt->dt, loc, at));
-
-        rt->dt->storage[AT_REG].data[0] = result;
+        BB8_APPEND("rt->dt->storage[AT_REG].data[0] = value_invoke(rt, DECODE(%#lx));\n", o);
 
         // @NOTE: reason we are NOT doing value_copyValue() here, is because we want the register value to inherit
         // all responsibilities of `result` here ... including refcounts, free() obligations...
@@ -442,100 +429,7 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
       // ...
 
       case OP_JIT: {
-        // @jit_begin("sum", memoized=true, args=1)
-        // ... some instructions
-        // @jit_end ; internally -- tags `sum` as $d6
-
-        // -> OP_JIT JIT_FLAG_BEGIN | JIT_FLAG_MEMOIZE ; memoize for when fn is called ?? idk
-        // ->   1 ; args to hash for memoize
-        // ->   $d6 ; location of native fn to store at
-        // -> ... some instructions
-        // -> OP_JIT JIT_FLAG_END
-
-        // ; raw, unoptimized code
-
-        // -> OP_CALL #{_System_arrayCreate} ; construct an array -- now stored in $r0
-        // -> OP_PUSH $r0 ; push new array to stack -- stored as local variable
-
-        // -> OP_PUSH $s[-1] ; push last stack item to top, duplicating
-        // -> OP_LOAD | CONST_FLAG_U64 $r0 0
-        // -> OP_PUSH $r0 ; push 0 to stack
-        // -> OP_LOAD | CONST_FLAG_F64 $r0 3.5
-        // -> OP_PUSH $r0 ; push 3.5 to stack
-        // -> OP_CALL #{_System_arraySetIndex} ; set array[0] to 3.5
-        // -> OP_POP 3
-
-        // -> OP_PUSH $s[-1] ; push last stack item to top, duplicating
-        // -> OP_LOAD | CONST_FLAG_U64 $r0 0
-        // -> OP_PUSH $r0 ; push 0 to stack
-        // -> OP_LOAD | CONST_FLAG_F64 $r0 4.6
-        // -> OP_PUSH $r0 ; push 4.6 to stack
-        // -> OP_CALL #{_System_arraySetIndex} ; set array[0] to 4.6
-        // -> OP_POP 3
-
-        // -> OP_CALL #{sum} ; call native fn
-
-        // =====
-        // ; optimized, first pass
-
-        // -> OP_CALL #{_System_arrayCreate} ; construct an array -- now stored in $r0
-        // -> OP_PUSH $r0 ; push new array to stack -- stored as local variable
-
-        // -> OP_PUSH $s[-1] ; push last stack item to top, duplicating
-        // -> OP_PUSH | CONST_FLAG_U64 0
-        // -> OP_PUSH | CONST_FLAG_F64 3.5 ; push 3.5 to stack
-        // -> OP_CALL #{_System_arraySetIndex} ; set array[0] to 3.5
-        // -> OP_POP 3
-
-        // -> OP_PUSH $s[-1] ; push last stack item to top, duplicating
-        // -> OP_PUSH | CONST_FLAG_U64 0 ; push 0 to stack
-        // -> OP_PUSH | CONST_FLAG_F64 4.6 ; push 4.6 to stack
-        // -> OP_CALL #{_System_arraySetIndex} ; set array[0] to 4.6
-        // -> OP_POP 3
-
-        // -> OP_CALL #{sum} ; call native fn
-
-
-        // built a native_function_t jitFunction_<addr>
-        // @todo: function memoization? maybe have an argument for X number of stack parameters
-        // to take a hash of and lookup a memoized function based on this?
-
-        native_function_t jitFunction;
-
-#if JIT
-        return;
-#else if INTERPRET
-
-        if (flags & JIT_FLAG_BEGIN) { // begin
-          char *buf; // C source code buffer?
-          uint8_t jitOp = OP_JIT;
-          uint8_t jitFlags = flags;
-
-
-          // set hash to be hash of (it->pc)
-          // as well as hashcode of X number of stack items
-          // this could be useful for memoizing function arguments
-          //char hash[64];
-
-          // while (!interpreter_atEnd(it)) {
-          //   interpreter_read(it, &jitOp, &jitFlags);
-
-          //   if (flags & JIT_FLAG_MEMOIZE) {
-          //     jit_buildMemoized(rt->jit, jitOp, jitFlags, &buf);
-          //   } else {
-          //     // default -- does not expand CMP and conditionals
-          //     jit_build(rt->jit, jitOp, jitFlags, &buf);
-          //   }
-          // }
-          interpreter_runJit(it);
-
-          // first pass, run C compiler, load obj file, lookup function `jitFunction_<hash>`
-
-
-          jitmap_set(rt->jit->map, )
-
-        }
-#endif
+        assert(false && "OP_JIT called from within JIT function");
 
         // move value_t to static data that holds jitFunction
 
@@ -547,9 +441,21 @@ void jit_run(interpreter_t *it, runtime_t *rt) {
         break;
     }
 
-    printf("}\n\n");
+    BB8_APPEND("}\n\n");
+
+    strcat(bb8_jitStream, bb8_cmdStream);    
   }
 
-  printf("\nruntime_destroy(rt);\n");
-  printf("return 0;\n}\n");
+  strcat(bb8_jitStream, "\nruntime_destroy(rt);\n");
+  strcat(bb8_jitStream, "return 0;\n}\n");
+
+  // TODO: run compiler?
+  FILE *fptr = fopen("_tmp_jit.c", "w");
+  if (fptr == NULL) {
+    puts("Failed to open tmp file");
+    exit(1);
+  }
+
+  fputs(fptr, bb8_jitStream);
+  fclose(fptr);
 }
