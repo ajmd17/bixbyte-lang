@@ -29,15 +29,14 @@ namespace bcparse {
 
     void acceptObjLoc(const ObjLoc &objLoc) {
       uint8_t at = (uint8_t)objLoc.getDataStoreLocation();
-      at |= ((objLoc.getLocation() < 0 ? 0x8 : 0xC) << 2); // negative numbers are relative values
-
-      uint8_t payload = (objLoc.getLocation() << 4) | at;
+      at |= ((objLoc.getLocation() < 0 ? 0x8 : 0xC) << 2); // neg = relative
+      uint32_t payload = (abs(objLoc.getLocation()) << 4) | (at & 0xF);
 
       acceptBytes(payload);
     }
 
     inline const std::vector<uint8_t> &getData() const { return m_data; }
-  
+
   private:
     std::vector<uint8_t> m_data;
   };

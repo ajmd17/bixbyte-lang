@@ -1,5 +1,10 @@
 #include <vm/interpreter.h>
 
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+#include <stdlib.h>
+
 interpreter_t *interpreter_create(ubyte_t *data, size_t len) {
   interpreter_t *it = (interpreter_t*)malloc(sizeof(interpreter_t));
   it->pc = 0;
@@ -232,7 +237,7 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
             interpreter_read(it, sizeof(o), &o);
             obj_loc_parse(o, &loc, &at);
 
-            value_copyValue(rt, stack->data[stack->len], datatable_getValue(rt->dt, loc, at));
+            value_copyValue(rt, &stack->data[stack->len], datatable_getValue(rt->dt, loc, at));
 
             break;
           }
@@ -457,6 +462,8 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
       // ...
 
       case OP_JIT: {
+        assert(false && "JIT unimplemented");
+#if 0
         // @jit_begin("sum", memoized=true, args=1)
         // ... some instructions
         // @jit_end ; internally -- tags `sum` as $d6
@@ -538,16 +545,18 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
           //     jit_build(rt->jit, jitOp, jitFlags, &buf);
           //   }
           // }
-          interpreter_runJit(it);
+
+          // interpreter_runJit(it);
 
           // first pass, run C compiler, load obj file, lookup function `jitFunction_<hash>`
 
 
-          jitmap_set(rt->jit->map, )
-
+          // jitmap_set(rt->jit->map, )
         }
 
         // move value_t to static data that holds jitFunction
+
+#endif
 
         break;
       }

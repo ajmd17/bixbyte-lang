@@ -3,6 +3,7 @@
 #include <vm/datatable.h>
 #include <vm/heap.h>
 #include <vm/rc.h>
+#include <vm/except.h>
 
 typedef struct runtime runtime_t;
 

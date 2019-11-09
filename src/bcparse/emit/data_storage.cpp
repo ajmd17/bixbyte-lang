@@ -1,5 +1,6 @@
 #include <bcparse/emit/data_storage.hpp>
 #include <bcparse/emit/emit.hpp>
+#include <bcparse/emit/formatter.hpp>
 
 #include <iostream>
 
@@ -24,6 +25,15 @@ namespace bcparse {
         ObjLoc(i, ObjLoc::DataStoreLocation::StaticDataStore),
         m_values[i]
       ).accept(bs);
+    }
+  }
+
+  void DataStorage::debugPrint(Formatter *f) {
+    for (size_t i = 0; i < m_values.size(); i++) {
+      Op_Load(
+        ObjLoc(i, ObjLoc::DataStoreLocation::StaticDataStore),
+        m_values[i]
+      ).debugPrint(f);
     }
   }
 }

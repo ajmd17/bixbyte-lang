@@ -4,6 +4,7 @@
 #include <vm/types.h>
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef enum {
   TYPE_NONE = 0x0,
@@ -24,7 +25,7 @@ typedef enum {
   FLAG_REFCOUNTED = 0x10
 } VALUE_FLAGS;
 
-typedef struct {
+typedef struct value {
   union {
     int64_t i64;
     uint64_t u64;
@@ -42,6 +43,7 @@ typedef struct {
 void value_destroy(runtime_t *rt, value_t *value);
 void value_copyValue(runtime_t *rt, value_t *v, value_t *other);
 void value_setInt(runtime_t *rt, value_t *v, int64_t i64);
+int64_t value_getInt(value_t *v);
 value_t value_fromInt(int64_t i64);
 void value_setUint(runtime_t *rt, value_t *v, uint64_t u64);
 uint64_t value_getUint(value_t *v);
@@ -64,3 +66,4 @@ void value_setType(value_t *value, VALUE_TYPE type);
 VALUE_FLAGS value_getFlags(value_t *value);
 void value_setFlag(value_t *value, VALUE_FLAGS flag, int state);
 uintptr_t value_getID(value_t *value);
+value_t value_invoke(runtime_t *r, value_t *value);

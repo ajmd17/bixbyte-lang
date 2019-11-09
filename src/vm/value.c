@@ -1,4 +1,6 @@
 #include <vm/value.h>
+#include <vm/runtime.h>
+#include <vm/obj_loc.h>
 
 void value_destroy(runtime_t *rt, value_t *value) {
   /*if (value->metadata & (TYPE_POINTER | (FLAG_OBJECT << 8))) {
@@ -173,4 +175,11 @@ uintptr_t value_getID(value_t *value) {
 
   //int isptr = !!(value->metadata & TYPE_POINTER);
   //return (-isptr & (uintptr_t)value->data.ptr) | ((isptr - 1) & (uintptr_t)(&value->data));
+}
+
+value_t value_invoke(runtime_t *r, value_t *value) {
+  args_t args;
+  args._stack = &r->dt->storage[AT_LOCAL];
+
+  return value->data.fn(r, &args);
 }

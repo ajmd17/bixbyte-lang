@@ -13,6 +13,7 @@ namespace bcparse {
     virtual ~Op_NoOp() = default;
 
     virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(Formatter *f) override;
   };
 
   class Op_Load : public Buildable {
@@ -22,6 +23,7 @@ namespace bcparse {
     virtual ~Op_Load() = default;
 
     virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(Formatter *f) override;
 
   private:
     ObjLoc m_objLoc;
@@ -35,6 +37,7 @@ namespace bcparse {
     virtual ~Op_Mov() = default;
 
     virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(Formatter *f) override;
 
   private:
     ObjLoc m_left;
@@ -48,5 +51,6 @@ namespace bcparse {
     virtual ~Op_Halt() = default;
 
     virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(Formatter *f) override;
   };
 }

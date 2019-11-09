@@ -1,4 +1,5 @@
 #include <bcparse/emit/emit.hpp>
+#include <bcparse/emit/formatter.hpp>
 
 namespace bcparse {
   Op_Load::Op_Load(const ObjLoc &objLoc, const Value &value)
@@ -17,5 +18,13 @@ namespace bcparse {
     for (uint8_t u8 : m_value.getRawBytes()) {
       bs->acceptBytes(u8);
     }
+  }
+
+  void Op_Load::debugPrint(Formatter *f) {
+    f->append(std::string("Op_Load(")
+      + m_objLoc.toString()
+      + ", "
+      + m_value.toString()
+      + ")");
   }
 }

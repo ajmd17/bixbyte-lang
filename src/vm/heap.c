@@ -1,4 +1,10 @@
 #include <vm/heap.h>
+#include <vm/value.h>
+
+#include <stdlib.h>
+
+#include <pthread.h>
+pthread_mutex_t heapMutex = PTHREAD_MUTEX_INITIALIZER;
 
 heap_node_t *heap_node_create() {
   heap_node_t *node = (heap_node_t*)malloc(sizeof(heap_node_t));
@@ -33,7 +39,7 @@ void heap_destroy(heap_t *heap) {
 }
 
 heap_value_t *heap_alloc(heap_t *heap) {
-  pthread_mutex_lock(&heapMutex);
+  heap_lock();
 
   heap_node_t *node = heap_node_create();
 
@@ -47,7 +53,7 @@ heap_value_t *heap_alloc(heap_t *heap) {
 
   ++heap->size;
 
-  pthread_mutex_unlock(&heapMutex);
+  heap_unlock();
 
   return &heap->head->hv;
 }
@@ -87,4 +93,14 @@ void heap_sweep(heap_t *heap) {
 
     --heap->size;
   }
+}
+
+// TODO: make heap lock()/unlock() per heap so we can have multiple
+
+void heap_lock() {
+  pthread_mutex_lock(&heapMutex);
+}
+
+void heap_unlock() {
+  pthread_mutex_unlock(&heapMutex);
 }

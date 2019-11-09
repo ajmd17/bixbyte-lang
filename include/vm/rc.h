@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 typedef void * rcmap_key_t;
 typedef void * refcounted_t;

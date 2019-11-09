@@ -8,6 +8,7 @@ namespace bcparse {
   typedef size_t LabelId_t;
 
   class BytecodeStream;
+  class Formatter;
 
   struct LabelInfo {
     LabelPosition_t position;
@@ -18,5 +19,6 @@ namespace bcparse {
     virtual ~Buildable() = default;
 
     virtual void accept(BytecodeStream *bs) = 0;
+    virtual void debugPrint(Formatter *f) = 0;
   };
 }

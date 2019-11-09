@@ -5,7 +5,6 @@
 #include <stdbool.h>
 
 #include <pthread.h>
-pthread_mutex_t heapMutex = PTHREAD_MUTEX_INITIALIZER;
 
 // ===== Instructions =====
 
@@ -13,22 +12,15 @@ pthread_mutex_t heapMutex = PTHREAD_MUTEX_INITIALIZER;
 #include <vm/rc.h>
 #include <vm/value.h>
 #include <vm/heap.h>
+#include <vm/types.h>
 
-struct runtime;
-typedef struct runtime runtime_t;
-refcounted_t runtime_claim(runtime_t *rt, rcmap_key_t ptr);
-void runtime_release(runtime_t *rt, refcounted_t rc);
+#include <vm/jit.h>
 
-struct value;
-typedef struct value value_t;
-value_t value_invoke(runtime_t *r, value_t *value);
+
 // enum _VALUE_FLAGS;
 // typedef enum _VALUE_FLAGS VALUE_FLAGS;
 // value_t value_fromRawPointer(void*, VALUE_FLAGS);
 // void value_destroy(runtime_t *rt, value_t *value);
-
-struct args;
-typedef struct args args_t;
 
 // ===== heap memory =====
 
@@ -226,20 +218,10 @@ int rcmap_remove(rcmap_t *map, rcmap_key_t key) {
 
 // ===== Native function arguments =====
 
-struct args {
-  storage_t *_stack;
-};
-
 value_t *args_getArg(args_t *args, size_t index) {
   return &args->_stack->data[args->_stack->len - 1 - index];
 }
 
-value_t value_invoke(runtime_t *r, value_t *value) {
-  args_t args;
-  args._stack = &r->dt->storage[AT_LOCAL];
-
-  return value->data.fn(r, &args);
-}
 
 // ===== Builtin bindings =====
 value_t _System_createObject(runtime_t *r, args_t *args) {
@@ -276,7 +258,7 @@ uint8_t makeInstruction(enum INSTRUCTIONS opcode, uint8_t flags) {
 }
 
 void showArguments(int argc, char *argv[]) {
-  printf("Arguments: %s <filename>\n", argv[0]);
+  printf("Arguments: %s <filename>\n\t--genc: Generate C source file\n\n", argv[0]);
   exit(EXIT_FAILURE);
 }
 
@@ -295,7 +277,7 @@ void *interpreterThread(void *arg) {
 
   value_setFunction(iData->rt, datatable_getValue(iData->rt->dt, 0, AT_DATA | AT_ABS), _System_C_exit);
 
-  interpreter_loop(it, iData->rt);
+  interpreter_run(it, iData->rt);
   interpreter_destroy(it);
 
   return NULL;
@@ -362,6 +344,8 @@ void openFile(interpreter_data_t *iData, int argc, char *argv[]) {
   (byte & 0x02 ? '1' : '0'), \
   (byte & 0x01 ? '1' : '0')
 
+#if 1
+
 // ===== Main driver =====
 int main(int argc, char *argv[]) {
   interpreter_data_t iData;
@@ -408,25 +392,39 @@ int main(int argc, char *argv[]) {
 
     // return 0;
 
-  } else if (argc == 2) {
+  } else if (argc == 2 || argc == 3) {
     openFile(&iData, argc, argv);
   } else {
     showArguments(argc, argv);
     return 1;
   }
 
-
   iData.rt = runtime_create();
 
-  pthread_t interpreterThreadId, gcThreadId;
+  bool genc = false;
 
-  pthread_create(&interpreterThreadId, NULL, interpreterThread, (void*)&iData);
-  pthread_join(interpreterThreadId, NULL);
+  for (int i = 0; i < argc; i++) {
+    if (strcmp(argv[i], "--genc") == 0) {
+      genc = true;
+    }
+  }
 
-  pthread_create(&gcThreadId, NULL, gcThread, (void*)iData.rt);
-  pthread_join(gcThreadId, NULL);
+  if (genc) {
+    interpreter_t *it = interpreter_create(iData.data, iData.len);
+    jit_run(it, iData.rt);
+    interpreter_destroy(it);
+  } else {
+    // execution thread
+    pthread_t interpreterThreadId, gcThreadId;
 
-  runtime_gc(iData.rt);
+    pthread_create(&interpreterThreadId, NULL, interpreterThread, (void*)&iData);
+    pthread_join(interpreterThreadId, NULL);
+
+    pthread_create(&gcThreadId, NULL, gcThread, (void*)iData.rt);
+    pthread_join(gcThreadId, NULL);
+
+    runtime_gc(iData.rt);
+  }
 
   runtime_destroy(iData.rt);
 
@@ -434,3 +432,5 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
+
+#endif

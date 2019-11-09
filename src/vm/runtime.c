@@ -1,5 +1,7 @@
 #include <vm/runtime.h>
 
+#include <assert.h>
+
 runtime_t *runtime_create() {
   runtime_t *r = (runtime_t*)malloc(sizeof(runtime_t));
 
@@ -18,12 +20,12 @@ void runtime_destroy(runtime_t *r) {
 }
 
 void runtime_gc(runtime_t *r) {
-  pthread_mutex_lock(&heapMutex);
+  heap_lock();
 
   datatable_mark(r->dt);
   heap_sweep(r->heap);
 
-  pthread_mutex_unlock(&heapMutex);
+  heap_unlock();
 }
 
 void runtime_throwException(runtime_t *r, exception_t *e) {

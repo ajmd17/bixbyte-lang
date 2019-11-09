@@ -1,5 +1,8 @@
 #include <vm/datatable.h>
+#include <vm/value.h>
+#include <vm/heap.h>
 
+#include <string.h>
 
 datatable_t *datatable_create() {
   datatable_t *dt = (datatable_t*)malloc(sizeof(datatable_t));
@@ -27,10 +30,14 @@ void datatable_destroy(runtime_t *rt, datatable_t *dt) {
 
   for (i = 0; i < 4; i++) {
     while (dt->storage[i].len) {
-      value_destroy(rt, &dt->storage[i].data[--dt->storage[i].len]);
+      value_destroy(rt, &dt->storage[i].data[dt->storage[i].len - 1]);
+      --dt->storage[i].len;
     }
 
-    free(dt->storage[i].data);
+    if (dt->storage[i].data != NULL) {
+      free(dt->storage[i].data);
+      dt->storage[i].data = NULL;
+    }
   }
 
   free(dt);
@@ -56,6 +63,7 @@ void datatable_mark(datatable_t *dt) {
   datatable_markTable(&dt->storage[AT_LOCAL]);
 }
 
+/* address [00000000 00000000 00000000 0000] abs/rel [00] storage [00] */
 value_t *datatable_getValue(datatable_t *dt, loc_28_t loc, archtype_t at) {
   storage_t *s = &dt->storage[at & 0x3];
 

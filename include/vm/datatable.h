@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vm/value.h>
+#include <vm/obj_loc.h>
 
 #include <stdint.h>
 
@@ -11,12 +12,12 @@
 #define STACK_SIZE_BYTES (MB_TO_BYTES(DEFAULT_STACK_SIZE_MB) - (MB_TO_BYTES(DEFAULT_STACK_SIZE_MB) % sizeof(value_t)))
 #define NUM_REGISTERS 4
 
-typedef struct {
+typedef struct storage {
   value_t *data;
   size_t len;
 } storage_t;
 
-typedef struct {
+typedef struct datatable {
   storage_t storage[4];
 } datatable_t;
 

@@ -16,6 +16,7 @@ namespace bcparse {
     size_t getSize() const { return m_values.size(); }
 
     virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(Formatter *f) override;
 
   private:
     std::vector<Value> m_values;

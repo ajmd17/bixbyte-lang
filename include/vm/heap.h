@@ -1,8 +1,9 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
-typedef struct {
+typedef struct heap_value {
   void *ptr;
   uint8_t flags;
 } heap_value_t;
@@ -19,7 +20,7 @@ struct heap_node {
 heap_node_t *heap_node_create();
 void heap_node_destroy(heap_node_t *node);
 
-typedef struct {
+typedef struct heap {
   heap_node_t *head;
   size_t size;
 } heap_t;
@@ -29,3 +30,6 @@ void heap_destroy(heap_t *heap);
 
 heap_value_t *heap_alloc(heap_t *heap);
 void heap_sweep(heap_t *heap);
+
+void heap_lock();
+void heap_unlock();

@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <bcparse/emit/bytecode_chunk.hpp>
+#include <bcparse/emit/formatter.hpp>
 
 #include <bcparse/lexer.hpp>
 #include <bcparse/compilation_unit.hpp>
@@ -28,7 +29,7 @@ namespace bcparse {
   public:
     static Result buildSourceFile(UStr filename, CompilationUnit *unit, BytecodeChunk *out) {
       std::stringstream ss;
-      
+
       std::ifstream in_file(
         filename.GetData(),
         std::ios::in | std::ios::ate | std::ios::binary
@@ -79,7 +80,7 @@ namespace bcparse {
 
           // compile into bytecode instructions
           iterator.resetPosition();
-          
+
           Compiler compiler(&iterator, unit);
 
           std::unique_ptr<BytecodeChunk> chunk(new BytecodeChunk);
@@ -146,9 +147,16 @@ Result handleArgs(int argc, char *argv[]) {
     return { false, ss.str() };
   }
 
+  Formatter f;
 
   Emitter emitter(&chunk);
-  emitter.emit(&of);
+  emitter.emit(&of, &f);
+
+  utf::cout << "AST:\n\n";
+  utf::cout << f.toString();
+  utf::cout << "\n\n";
+
+  utf::cout << "Compiled to " << outFilename.GetData() << "\n";
 
   return { true, "" };
 }
