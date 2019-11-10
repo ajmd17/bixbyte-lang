@@ -81,6 +81,7 @@ namespace bcparse {
     Msg_bitwise_operands_must_be_int,
     Msg_bitwise_operand_must_be_int,
     Msg_expected_token,
+    Msg_unknown_opcode,
     Msg_unknown_directive,
     Msg_unknown_module,
     Msg_expected_module,

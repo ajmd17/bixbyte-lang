@@ -14,6 +14,7 @@
 #include <bcparse/source_file.hpp>
 
 #include <sstream>
+#include <iostream>
 
 namespace bcparse {
   AstDirectiveImpl::AstDirectiveImpl(const std::vector<Pointer<AstExpression>> &arguments,

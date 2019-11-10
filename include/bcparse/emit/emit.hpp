@@ -66,6 +66,21 @@ namespace bcparse {
     Flags m_flags;
   };
 
+  // TODO: cmp flags
+  class Op_Cmp : public Buildable {
+  public:
+    Op_Cmp(const ObjLoc &left, const ObjLoc &right);
+    Op_Cmp(const Op_Jmp &other) = delete;
+    virtual ~Op_Cmp() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_left;
+    ObjLoc m_right;
+  };
+
   class Op_Halt : public Buildable {
   public:
     Op_Halt();

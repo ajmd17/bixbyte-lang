@@ -9,8 +9,12 @@
 #include <bcparse/ast/ast_string_literal.hpp>
 #include <bcparse/ast/ast_identifier.hpp>
 #include <bcparse/ast/ast_jmp_statement.hpp>
+#include <bcparse/ast/ast_cmp_statement.hpp>
 
 #include <common/my_assert.hpp>
+
+#include <string>
+#include <map>
 
 namespace bcparse {
   Parser::Parser(AstIterator *astIterator,
@@ -129,6 +133,12 @@ namespace bcparse {
   Pointer<AstStatement> Parser::parseStatement() {
     const SourceLocation location = currentLocation();
     Pointer<AstStatement> res;
+
+    skipStatementTerminators();
+
+    if (!m_tokenStream->hasNext()) {
+      return nullptr;
+    }
 
     if (match(Token::TK_DIRECTIVE)) {
       res = parseDirective();
@@ -275,6 +285,7 @@ namespace bcparse {
           }
 
           body << Token::getRepr(m_tokenStream->peek());
+          body << ' ';
 
           m_tokenStream->next();
         }
@@ -309,7 +320,15 @@ namespace bcparse {
 
   Pointer<AstStatement> Parser::parseCommand() {
     if (Token token = expect(Token::TK_IDENT, true)) {
-      if (token.getValue() == "jmp") {
+      const std::map<std::string, AstJmpStatement::JumpMode> jumpModeStrings = {
+        { "jmp", AstJmpStatement::JumpMode::None },
+        { "je", AstJmpStatement::JumpMode::JumpIfEqual },
+        { "jne", AstJmpStatement::JumpMode::JumpIfNotEqual },
+        { "jg", AstJmpStatement::JumpMode::JumpIfGreater },
+        { "jge", AstJmpStatement::JumpMode::JumpIfGreaterOrEqual },
+      };
+
+      if (jumpModeStrings.find(token.getValue()) != jumpModeStrings.end()) {
         auto expr = parseExpression();
 
         if (!expr) {
@@ -318,8 +337,33 @@ namespace bcparse {
 
         return Pointer<AstJmpStatement>(new AstJmpStatement(
           expr,
-          AstJmpStatement::JumpMode::None,
+          jumpModeStrings.find(token.getValue())->second,
           token.getLocation()
+        ));
+      } else if (token.getValue() == "cmp") {
+        auto left = parseExpression();
+
+        if (!left) {
+          return nullptr;
+        }
+
+        auto right = parseExpression();
+
+        if (!right) {
+          return nullptr;
+        }
+
+        return Pointer<AstCmpStatement>(new AstCmpStatement(
+          left,
+          right,
+          token.getLocation()
+        ));
+      } else {
+        m_compilationUnit->getErrorList().addError(CompilerError(
+          LEVEL_ERROR,
+          Msg_unknown_opcode,
+          token.getLocation(),
+          token.getValue()
         ));
       } // .. more
     }
@@ -354,17 +398,16 @@ namespace bcparse {
       // mini-parser
       switch (token.getTokenClass()) {
       case Token::TK_IDENT:
-        {
-          if (auto value = m_compilationUnit->getBoundGlobals().get(token.getValue())) {
-            return value; // @TODO build expression, not just return value
-          } else {
-            m_compilationUnit->getErrorList().addError(CompilerError(
-              LEVEL_ERROR,
-              Msg_undeclared_identifier,
-              token.getLocation(),
-              token.getValue()
-            ));
-          }
+        // return parseIdentifier();
+        if (auto value = m_compilationUnit->getBoundGlobals().get(token.getValue())) {
+          return value; // @TODO build expression, not just return value
+        } else {
+          m_compilationUnit->getErrorList().addError(CompilerError(
+            LEVEL_ERROR,
+            Msg_undeclared_identifier,
+            token.getLocation(),
+            token.getValue()
+          ));
         }
 
         break;
