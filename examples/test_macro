@@ -1,6 +1,12 @@
-@macro "salami" {
+@macro "dosomething" {
   "hello world"
-  #{_0}
+  jmp #{_0}
+  #{_1}
+
+  jne #{_1}
 }
 
-@salami "BALOOGA"
+infiniteloop:
+  @dosomething begin infiniteloop
+begin:
+

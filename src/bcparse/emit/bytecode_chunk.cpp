@@ -1,5 +1,6 @@
 #include <bcparse/emit/bytecode_chunk.hpp>
 #include <bcparse/emit/bytecode_stream.hpp>
+#include <bcparse/emit/formatter.hpp>
 
 namespace bcparse {
   BytecodeChunk::BytecodeChunk() {
@@ -18,9 +19,23 @@ namespace bcparse {
   }
 
   void BytecodeChunk::accept(BytecodeStream *bs) {
+    Buildable::accept(bs);
+
     for (const auto &b : m_buildables) {
       b->accept(bs);
     }
+  }
+
+  void BytecodeChunk::debugPrint(BytecodeStream *bs, Formatter *f) {
+    Buildable::debugPrint(bs, f);
+
+    f->increaseIndent();
+
+    for (const auto &b : m_buildables) {
+      b->debugPrint(bs, f);
+    }
+
+    f->decreaseIndent();
   }
 
   LabelId_t BytecodeChunk::generateLabel() {
@@ -28,5 +43,5 @@ namespace bcparse {
     m_labels.emplace_back();
     return id;
   }
-  
+
 }

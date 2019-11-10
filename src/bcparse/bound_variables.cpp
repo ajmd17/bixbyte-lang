@@ -13,7 +13,7 @@ namespace bcparse {
     : m_parent(other.m_parent),
       m_map(other.m_map) {
   }
-  
+
   void BoundVariables::setParent(BoundVariables *parent) {
     ASSERT(parent != nullptr);
 

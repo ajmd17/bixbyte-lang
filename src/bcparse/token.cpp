@@ -7,26 +7,26 @@ namespace bcparse {
 
   std::string Token::tokenTypeToString(TokenClass tokenClass) {
     switch (tokenClass) {
-      case TK_INTEGER:       return "integer";
-      case TK_FLOAT:         return "float";
-      case TK_STRING:        return "string";
-      case TK_OPCODE:        return "opcode";
-      case TK_REG:           return "register";
-      case TK_LOCAL:         return "local";
-      case TK_ADDR:          return "address";
-      case TK_IDENT:         return "identifier";
-      case TK_TAG:           return "tag";
-      case TK_LABEL:         return "label";
-      case TK_DIRECTIVE:     return "directive";
-      case TK_INTERPOLATION: return "interpolation";
-      case TK_NEWLINE:       return "\\n";
-      case TK_COMMA:         return "comma";
-      case TK_OPEN_PARENTH:  return "(";
-      case TK_CLOSE_PARENTH: return ")";
-      case TK_OPEN_BRACKET:  return "[";
-      case TK_CLOSE_BRACKET: return "]";
-      case TK_OPEN_BRACE:    return "{";
-      case TK_CLOSE_BRACE:   return "}";
+      case TK_INTEGER:       return "TK_INTEGER";
+      case TK_FLOAT:         return "TK_FLOAT";
+      case TK_STRING:        return "TK_STRING";
+      case TK_OPCODE:        return "TK_OPCODE";
+      case TK_REG:           return "TK_REG";
+      case TK_LOCAL:         return "TK_LOCAL";
+      case TK_ADDR:          return "TK_ADDR";
+      case TK_IDENT:         return "TK_IDENT";
+      case TK_TAG:           return "TK_TAG";
+      case TK_LABEL:         return "TK_LABEL";
+      case TK_DIRECTIVE:     return "TK_DIRECTIVE";
+      case TK_INTERPOLATION: return "TK_INTERPOLATION";
+      case TK_NEWLINE:       return "TK_NEWLINE";
+      case TK_COMMA:         return "TK_COMMA";
+      case TK_OPEN_PARENTH:  return "TK_OPEN_PARENTH";
+      case TK_CLOSE_PARENTH: return "TK_CLOSE_PARENTH";
+      case TK_OPEN_BRACKET:  return "TK_OPEN_BRACKET";
+      case TK_CLOSE_BRACKET: return "TK_CLOSE_BRACKET";
+      case TK_OPEN_BRACE:    return "TK_OPEN_BRACE";
+      case TK_CLOSE_BRACE:   return "TK_CLOSE_BRACE";
       default:               return "??";
     }
   }

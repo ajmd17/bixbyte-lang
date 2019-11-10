@@ -193,7 +193,7 @@ namespace bcparse {
 
       char badTokenStr[sizeof(badToken)] = { '\0' };
       utf::char32to8(badToken, badTokenStr);
-      
+
       m_compilationUnit->getErrorList().addError(CompilerError(
           LEVEL_ERROR,
           Msg_unexpected_token,
@@ -325,7 +325,7 @@ namespace bcparse {
               // read next to check if after is a digit
               int posChange = 0;
               m_sourceStream.next(posChange);
-              
+
               u32char next = m_sourceStream.peek();
 
               if (!utf::utf32_isalpha(next) && next != (u32char)'_') {
@@ -340,7 +340,7 @@ namespace bcparse {
             }
         }
       }
-      
+
       ch = m_sourceStream.peek();
     }
 
@@ -422,6 +422,7 @@ namespace bcparse {
 
     if (value.back() == ':') {
       tokenType = Token::TK_LABEL;
+      value.pop_back();
     }
 
     return Token(tokenType, value, location);
@@ -507,7 +508,7 @@ namespace bcparse {
     if (!expectChar('{', true, &posChange)) return Token::EMPTY;
 
     int parenCounter = 1;
-    
+
     std::stringstream body;
 
     // read until newline or EOF is reached
@@ -515,7 +516,7 @@ namespace bcparse {
       int posChange = 0;
       utf::u32char ch = m_sourceStream.next(posChange);
       m_sourceLocation.getColumn() += posChange;
-      
+
       switch (ch) {
       case '{':
         ++parenCounter;
@@ -534,5 +535,5 @@ namespace bcparse {
     expectChar('}');
 
     return Token::EMPTY;
-  }  
+  }
 }

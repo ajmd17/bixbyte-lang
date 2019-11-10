@@ -18,6 +18,7 @@ namespace bcparse {
     void append(std::unique_ptr<Buildable> buildable);
     void prepend(std::unique_ptr<Buildable> buildable);
     void accept(BytecodeStream *bs) override;
+    void debugPrint(BytecodeStream *bs, Formatter *f) override;
 
     LabelId_t generateLabel();
 

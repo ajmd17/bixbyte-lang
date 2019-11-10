@@ -1,7 +1,9 @@
 #pragma once
 
 #include <vector>
+#include <string>
 #include <cstring>
+#include <sstream>
 
 namespace bcparse {
   class Value {
@@ -57,6 +59,57 @@ namespace bcparse {
 
     inline ValueType getValueType() const { return m_valueType; }
     inline const std::vector<uint8_t> &getRawBytes() const { return m_rawBytes; }
+
+    inline std::string toString() const {
+      std::stringstream ss;
+
+      switch (m_valueType) {
+        case ValueType::ValueTypeNull:
+          ss << "NULL";
+          break;
+        case ValueType::ValueTypeI64:
+          ss << "I64(";
+          ss << *((int64_t*)&m_rawBytes[0]);
+          ss << ")";
+          break;
+        case ValueType::ValueTypeU64:
+          ss << "U64(";
+          ss << *((uint64_t*)&m_rawBytes[0]);
+          ss << ")";
+          break;
+        case ValueType::ValueTypeF64:
+          ss << "F64(";
+          ss << *((double*)&m_rawBytes[0]);
+          ss << ")";
+          break;
+        case ValueType::ValueTypeBoolean:
+          ss << "BOOL(";
+          ss << (m_rawBytes[0] ? "true" : "false");
+          ss << ")";
+          break;
+        case ValueType::ValueTypeRawData:
+          ss << "RAW(\"";
+          for (uint8_t b : m_rawBytes) {
+            if (b == '\t') {
+              ss << "\\t";
+            } else if (b == '\n') {
+              ss << "\\n";
+            } else if (b == '\0') {
+              ss << "\\0";
+            } else if (b == '\r') {
+              ss << "\\r";
+            } else if (b == '"') {
+              ss << "\\\"";
+            } else {
+              ss << b;
+            }
+          }
+          ss << "\")";
+          break;
+      }
+
+      return ss.str();
+    }
 
   private:
     ValueType m_valueType;

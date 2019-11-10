@@ -16,6 +16,7 @@ namespace bcparse {
     inline void addError(const CompilerError &error) { m_errors.push_back(error); }
     inline void clearErrors() { m_errors.clear(); }
     inline void sortErrors() { std::sort(m_errors.begin(), m_errors.end()); }
+    inline const std::vector<CompilerError> &getErrors() const { return m_errors; }
 
     bool hasFatalErrors() const;
     std::ostream &writeOutput(std::ostream &os) const; // @TODO make UTF8 compatible

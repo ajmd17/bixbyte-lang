@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-file (GLOB_RECURSE vm_SOURCES "*.cpp")
+file (GLOB_RECURSE vm_SOURCES "*.c")
 file (GLOB_RECURSE vm_HEADERS "../../include/vm/*.hpp")
 
 foreach(f IN LISTS vm_SOURCES)
@@ -14,4 +14,4 @@ foreach(f IN LISTS vm_HEADERS)
     COMPILE_DEFINITIONS "__FILENAME__=${b}")
 endforeach()
 
-#add_executable(vm ${vm_SOURCES} ${vm_HEADERS})
+add_executable(vm ${vm_SOURCES} ${vm_HEADERS})

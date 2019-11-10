@@ -16,23 +16,12 @@ namespace bcparse {
   }
 
   void AstStringLiteral::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
+    // TODO caching
     size_t id = visitor->getCompilationUnit()->getDataStorage()->addStaticData(
       Value(std::vector<uint8_t>(m_value.begin(), m_value.end()))
     );
 
-    // @TODO assert `id` less than max of 24-bit unsigned integer
-
-    ObjLoc left(
-      visitor->getCompilationUnit()->getRegisterUsage().current(),
-      ObjLoc::DataStoreLocation::RegisterDataStore
-    );
-
-    ObjLoc right(
-      id,
-      ObjLoc::DataStoreLocation::StaticDataStore
-    );
-
-    out->append(std::unique_ptr<Op_Mov>(new Op_Mov(left, right)));
+    m_objLoc = ObjLoc(id, ObjLoc::DataStoreLocation::StaticDataStore);
   }
 
   void AstStringLiteral::optimize(AstVisitor *visitor, Module *mod) {
