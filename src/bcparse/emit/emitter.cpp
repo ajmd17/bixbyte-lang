@@ -15,8 +15,10 @@ namespace bcparse {
     op_halt.accept(&bs);
 
     if (f != nullptr) {
-      m_chunk->debugPrint(f);
-      op_halt.debugPrint(f);
+      f->setLineNo(0);
+
+      m_chunk->debugPrint(&bs, f);
+      op_halt.debugPrint(&bs, f);
     }
 
     os->write((char*)&bs.getData()[0], bs.getData().size());

@@ -23,13 +23,13 @@ namespace bcparse {
       m_body(body),
       m_location(location) {
   }
-  
+
   AstMacroDirective::AstMacroDirective(const std::vector<Pointer<AstExpression>> &arguments,
     const std::string &body,
     const SourceLocation &location)
     : AstDirectiveImpl(arguments, body, location) {
   }
-  
+
   AstMacroDirective::~AstMacroDirective() {
   }
 
@@ -86,9 +86,9 @@ namespace bcparse {
 
   void AstMacroDirective::optimize(AstVisitor *visitor, Module *mod) {
   }
-  
-  
-  
+
+
+
   AstUserDefinedDirective::AstUserDefinedDirective(const std::string &name,
     const std::vector<Pointer<AstExpression>> &arguments,
     const std::string &body,
@@ -98,7 +98,7 @@ namespace bcparse {
       m_iterator(nullptr),
       m_compilationUnit(nullptr) {
   }
-  
+
   AstUserDefinedDirective::~AstUserDefinedDirective() {
     if (m_iterator != nullptr) {
       delete m_iterator;
@@ -112,7 +112,7 @@ namespace bcparse {
   void AstUserDefinedDirective::visit(AstVisitor *visitor, Module *mod) {
     // lookup macro data and instantiate it, re-parsing the body
     Macro *macro = visitor->getCompilationUnit()->lookupMacro(m_name);
-    
+
     if (!macro) {
       visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
         LEVEL_ERROR,
@@ -123,7 +123,7 @@ namespace bcparse {
 
       return;
     }
-    
+
     std::stringstream filenameStream;
     filenameStream << m_location.getFileName();
     filenameStream << "@" << m_name;
@@ -148,7 +148,7 @@ namespace bcparse {
     for (size_t i = 0; i < m_arguments.size(); i++) {
       std::stringstream ss;
       ss << "_" << i;
-  
+
       m_compilationUnit->getBoundGlobals().set(ss.str(), m_arguments[i]);
     }
 
@@ -166,6 +166,10 @@ namespace bcparse {
 
     Analyzer analyzer(m_iterator, m_compilationUnit);
     analyzer.analyze();
+
+    for (auto &error : m_compilationUnit->getErrorList().getErrors()) {
+      visitor->getCompilationUnit()->getErrorList().addError(error);
+    }
   }
 
   void AstUserDefinedDirective::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
@@ -181,7 +185,7 @@ namespace bcparse {
 
   void AstUserDefinedDirective::optimize(AstVisitor *visitor, Module *mod) {
   }
-  
+
   AstDirective::AstDirective(const std::string &name,
     const std::vector<Pointer<AstExpression>> &arguments,
     const std::string &body,
@@ -198,7 +202,7 @@ namespace bcparse {
       delete m_impl;
       m_impl = nullptr;
     }
-  }  
+  }
 
   void AstDirective::visit(AstVisitor *visitor, Module *mod) {
     ASSERT(m_impl == nullptr);

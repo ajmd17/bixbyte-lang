@@ -4,7 +4,11 @@
 #include <bcparse/source_stream.hpp>
 
 #include <bcparse/ast/ast_directive.hpp>
+#include <bcparse/ast/ast_label_decl.hpp>
+#include <bcparse/ast/ast_label.hpp>
 #include <bcparse/ast/ast_string_literal.hpp>
+#include <bcparse/ast/ast_identifier.hpp>
+#include <bcparse/ast/ast_jmp_statement.hpp>
 
 #include <common/my_assert.hpp>
 
@@ -25,31 +29,31 @@ namespace bcparse {
 
   Token Parser::match(Token::TokenClass tokenClass, bool read) {
     Token peek = m_tokenStream->peek();
-    
+
     if (peek && peek.getTokenClass() == tokenClass) {
       if (read && m_tokenStream->hasNext()) {
         m_tokenStream->next();
       }
-      
+
       return peek;
     }
-    
+
     return Token::EMPTY;
   }
 
   Token Parser::matchAhead(Token::TokenClass tokenClass, int n) {
     Token peek = m_tokenStream->peek(n);
-    
+
     if (peek && peek.getTokenClass() == tokenClass) {
       return peek;
     }
-    
+
     return Token::EMPTY;
   }
 
   Token Parser::expect(Token::TokenClass tokenClass, bool read) {
     Token token = match(tokenClass, read);
-    
+
     if (!token) {
       const SourceLocation location = currentLocation();
 
@@ -128,6 +132,10 @@ namespace bcparse {
 
     if (match(Token::TK_DIRECTIVE)) {
       res = parseDirective();
+    } else if (match(Token::TK_LABEL)) {
+      res = parseLabel();
+    } else if (match(Token::TK_IDENT)) {
+      res = parseCommand();
     } else {
       res = parseExpression();
 
@@ -174,7 +182,9 @@ namespace bcparse {
 
     Pointer<AstExpression> expr;
 
-    if (match(Token::TK_OPEN_PARENTH)) {
+    if (match(Token::TK_IDENT)) {
+      expr = parseIdentifier();
+    } else if (match(Token::TK_OPEN_PARENTH)) {
       // expr = parseParentheses();
     } else if (match(Token::TK_OPEN_BRACKET)) {
       // expr = parseArrayExpression();
@@ -210,6 +220,17 @@ namespace bcparse {
     }
 
     return expr;
+  }
+
+  Pointer<AstIdentifier> Parser::parseIdentifier() {
+    if (Token token = expect(Token::TK_IDENT, true)) {
+      return Pointer<AstIdentifier>(new AstIdentifier(
+        token.getValue(),
+        token.getLocation()
+      ));
+    }
+
+    return nullptr;
   }
 
   Pointer<AstStringLiteral> Parser::parseStringLiteral() {
@@ -269,7 +290,43 @@ namespace bcparse {
 
     return nullptr;
   }
-  
+
+  Pointer<AstLabelDecl> Parser::parseLabel() {
+    if (Token token = expect(Token::TK_LABEL, true)) {
+      // add forward declaration for labels
+      Pointer<AstLabel> astLabel(new AstLabel(token.getValue(), token.getLocation()));
+      m_compilationUnit->getBoundGlobals().set(token.getValue(), astLabel);
+
+      return Pointer<AstLabelDecl>(new AstLabelDecl(
+        token.getValue(),
+        astLabel,
+        token.getLocation()
+      ));
+    }
+
+    return nullptr;
+  }
+
+  Pointer<AstStatement> Parser::parseCommand() {
+    if (Token token = expect(Token::TK_IDENT, true)) {
+      if (token.getValue() == "jmp") {
+        auto expr = parseExpression();
+
+        if (!expr) {
+          return nullptr;
+        }
+
+        return Pointer<AstJmpStatement>(new AstJmpStatement(
+          expr,
+          AstJmpStatement::JumpMode::None,
+          token.getLocation()
+        ));
+      } // .. more
+    }
+
+    return nullptr;
+  }
+
   Pointer<AstExpression> Parser::parseInterpolation() {
     Token token = expect(Token::TK_INTERPOLATION, true);
     if (token.empty()) return nullptr;

@@ -8,12 +8,16 @@ namespace bcparse {
   }
 
   void Op_Mov::accept(BytecodeStream *bs) {
+    Buildable::accept(bs);
+
     bs->acceptInstruction(0x2);
     bs->acceptObjLoc(m_left);
     bs->acceptObjLoc(m_right);
   }
 
-  void Op_Mov::debugPrint(Formatter *f) {
+  void Op_Mov::debugPrint(BytecodeStream *bs, Formatter *f) {
+    Buildable::debugPrint(bs, f);
+
     f->append(std::string("Op_Mov(")
       + m_left.toString()
       + ", "

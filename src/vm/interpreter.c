@@ -219,7 +219,6 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
         }
 
         interpreter_seek(it, value_getUint(v));
-        //printf("goto _lbl_%zu;\n", value_getUint(v));
 
       noSeek:
         break;

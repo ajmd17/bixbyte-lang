@@ -19,16 +19,20 @@ namespace bcparse {
   }
 
   void BytecodeChunk::accept(BytecodeStream *bs) {
+    Buildable::accept(bs);
+
     for (const auto &b : m_buildables) {
       b->accept(bs);
     }
   }
 
-  void BytecodeChunk::debugPrint(Formatter *f) {
+  void BytecodeChunk::debugPrint(BytecodeStream *bs, Formatter *f) {
+    Buildable::debugPrint(bs, f);
+
     f->increaseIndent();
 
     for (const auto &b : m_buildables) {
-      b->debugPrint(f);
+      b->debugPrint(bs, f);
     }
 
     f->decreaseIndent();

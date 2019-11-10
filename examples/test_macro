@@ -1,8 +1,13 @@
+begin:
+
 @macro "salami" {
   "hello world"
   #{_0}
+
+
+  jmp begin
 }
 
 @salami "BALOOGA"
 
-label:
+

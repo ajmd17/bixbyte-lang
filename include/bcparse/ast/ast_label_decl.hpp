@@ -1,14 +1,15 @@
 #pragma once
 
-#include <bcparse/ast/ast_expression.hpp>
-
-#include <bcparse/emit/obj_loc.hpp>
+#include <bcparse/ast/ast_statement.hpp>
+#include <bcparse/ast/ast_label.hpp>
 
 namespace bcparse {
-  class AstLabel : public AstExpression {
+  class AstLabelDecl : public AstStatement {
   public:
-    AstLabel(const std::string &name, const SourceLocation &location);
-    virtual ~AstLabel() = default;
+    AstLabelDecl(const std::string &name,
+      Pointer<AstLabel> astLabel,
+      const SourceLocation &location);
+    virtual ~AstLabelDecl() = default;
 
     const std::string &getName() const { return m_name; }
 
@@ -20,10 +21,12 @@ namespace bcparse {
 
   private:
     std::string m_name;
+    Pointer<AstLabel> m_astLabel;
 
-    inline Pointer<AstLabel> CloneImpl() const {
-      return Pointer<AstLabel>(new AstLabel(
+    inline Pointer<AstLabelDecl> CloneImpl() const {
+      return Pointer<AstLabelDecl>(new AstLabelDecl(
         m_name,
+        cloneAstNode(m_astLabel),
         m_location
       ));
     }

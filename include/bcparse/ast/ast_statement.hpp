@@ -39,22 +39,22 @@ namespace bcparse {
 
   template <typename T>
   typename enable_if<is_base_of<AstStatement, T>::value, Pointer<T>>::type
-  CloneAstNode(const Pointer<T> &stmt) { 
+  cloneAstNode(const Pointer<T> &stmt) {
     if (stmt == nullptr) {
       return nullptr;
     }
 
-    return static_pointer_cast<T>(stmt->Clone());
+    return static_pointer_cast<T>(stmt->clone());
   }
 
   template <typename T>
   typename enable_if<is_base_of<AstStatement, T>::value, vector<Pointer<T>>>::type
-  CloneAllAstNodes(const vector<Pointer<T>> &stmts) {
+  cloneAllAstNodes(const vector<Pointer<T>> &stmts) {
     vector<Pointer<T>> res;
     res.reserve(stmts.size());
 
     for (auto &stmt : stmts) {
-      res.push_back(CloneAstNode(stmt));
+      res.push_back(cloneAstNode(stmt));
     }
 
     return res;

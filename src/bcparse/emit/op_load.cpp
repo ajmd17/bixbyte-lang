@@ -8,6 +8,8 @@ namespace bcparse {
   }
 
   void Op_Load::accept(BytecodeStream *bs) {
+    Buildable::accept(bs);
+
     bs->acceptInstruction(0x1, (uint8_t)m_value.getValueType());
     bs->acceptObjLoc(m_objLoc);
 
@@ -20,7 +22,9 @@ namespace bcparse {
     }
   }
 
-  void Op_Load::debugPrint(Formatter *f) {
+  void Op_Load::debugPrint(BytecodeStream *bs, Formatter *f) {
+    Buildable::debugPrint(bs, f);
+
     f->append(std::string("Op_Load(")
       + m_objLoc.toString()
       + ", "

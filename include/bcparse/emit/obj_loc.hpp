@@ -13,6 +13,11 @@ namespace bcparse {
       RegisterDataStore = 0x3
     };
 
+    ObjLoc()
+      : m_location(-1),
+        m_dataStoreLocation(DataStoreLocation::NullDataStore) {
+    }
+
     ObjLoc(int location, DataStoreLocation dataStoreLocation)
       : m_location(location),
         m_dataStoreLocation(dataStoreLocation) {
@@ -30,6 +35,9 @@ namespace bcparse {
       std::stringstream ss;
 
       switch (m_dataStoreLocation) {
+        case DataStoreLocation::NullDataStore:
+          ss << "NULL";
+          break;
         case DataStoreLocation::StaticDataStore:
           ss << "STATIC";
           break;

@@ -18,7 +18,10 @@ namespace bcparse {
   public:
     virtual ~Buildable() = default;
 
-    virtual void accept(BytecodeStream *bs) = 0;
-    virtual void debugPrint(Formatter *f) = 0;
+    virtual void accept(BytecodeStream *bs);
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f);
+
+  private:
+    size_t m_loc;
   };
 }
