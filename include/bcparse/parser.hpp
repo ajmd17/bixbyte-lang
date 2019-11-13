@@ -12,8 +12,10 @@ namespace bcparse {
   class AstExpression;
   class AstDirective;
   class AstStringLiteral;
+  class AstIntegerLiteral;
   class AstIdentifier;
   class AstLabelDecl;
+  class AstDataLocation;
 
   class Parser {
   public:
@@ -38,10 +40,13 @@ namespace bcparse {
     Pointer<AstExpression> parseExpression();
     Pointer<AstExpression> parseTerm();
     Pointer<AstStringLiteral> parseStringLiteral();
+    Pointer<AstIntegerLiteral> parseIntegerLiteral();
     Pointer<AstIdentifier> parseIdentifier();
     Pointer<AstDirective> parseDirective();
     Pointer<AstLabelDecl> parseLabel();
     Pointer<AstExpression> parseInterpolation();
+    Pointer<AstDataLocation> parseRegister();
+    Pointer<AstDataLocation> parseLocal();
 
     AstIterator *m_astIterator;
     TokenStream *m_tokenStream;

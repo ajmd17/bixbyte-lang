@@ -48,11 +48,12 @@ namespace bcparse {
     }
 
     enum class ValueType {
-      ValueTypeNull = 0x0,
-      ValueTypeI64 = 0x1,
-      ValueTypeU64 = 0x2,
-      ValueTypeF64 = 0x3,
-      ValueTypeBoolean = 0x4,
+      ValueTypeNone = 0x0, // blank
+      ValueTypeNull = 0x1,
+      ValueTypeI64 = 0x2,
+      ValueTypeU64 = 0x3,
+      ValueTypeF64 = 0x4,
+      ValueTypeBoolean = 0x5,
       // empty space
       ValueTypeRawData = 0x7
     };
@@ -88,7 +89,9 @@ namespace bcparse {
           ss << ")";
           break;
         case ValueType::ValueTypeRawData:
-          ss << "RAW(\"";
+          ss << "RAW(";
+          ss << m_rawBytes.size();
+          ss << ", \"";
           for (uint8_t b : m_rawBytes) {
             if (b == '\t') {
               ss << "\\t";

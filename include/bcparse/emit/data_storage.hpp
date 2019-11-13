@@ -19,7 +19,7 @@ namespace bcparse {
     inline const std::vector<Value> &getValues() const { return m_values; }
 
     size_t addLabel(); // returns index/id
-    size_t addStaticData(const Value &value); // returns index/id
+    size_t addStaticData(const Value &value, bool cache = true); // returns index/id
     size_t getSize() const { return m_values.size(); }
 
     virtual void accept(BytecodeStream *bs) override;

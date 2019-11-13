@@ -67,8 +67,8 @@ void datatable_mark(datatable_t *dt) {
 value_t *datatable_getValue(datatable_t *dt, loc_28_t loc, archtype_t at) {
   storage_t *s = &dt->storage[at & 0x3];
 
-  int abs = ((at & 0xC) >> 2) - 2;
-  size_t idx = (-abs & loc) | ((abs - 1) & (s->len - loc));
+  int rel = (at & AT_ABS) != AT_ABS;
+  size_t idx = (-rel & loc) | ((rel - 1) & (s->len - loc));
 
   return &s->data[idx];
 }

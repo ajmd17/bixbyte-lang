@@ -39,13 +39,13 @@ namespace bcparse {
           ss << "NULL";
           break;
         case DataStoreLocation::StaticDataStore:
-          ss << "STATIC";
+          ss << "$S";
           break;
         case DataStoreLocation::LocalDataStore:
-          ss << "LOCAL";
+          ss << "$L";
           break;
         case DataStoreLocation::RegisterDataStore:
-          ss << "REGISTER";
+          ss << "$R";
           break;
       }
 

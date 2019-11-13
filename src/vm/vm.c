@@ -275,7 +275,7 @@ void *interpreterThread(void *arg) {
 
   interpreter_t *it = interpreter_create(iData->data, iData->len);
 
-  value_setFunction(iData->rt, datatable_getValue(iData->rt->dt, 0, AT_DATA | AT_ABS), _System_C_exit);
+  // value_setFunction(iData->rt, datatable_getValue(iData->rt->dt, 0, AT_DATA | AT_ABS), _System_C_exit);
 
   interpreter_run(it, iData->rt);
   interpreter_destroy(it);

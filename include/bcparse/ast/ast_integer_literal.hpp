@@ -3,12 +3,12 @@
 #include <bcparse/ast/ast_expression.hpp>
 
 namespace bcparse {
-  class AstStringLiteral : public AstExpression {
+  class AstIntegerLiteral : public AstExpression {
   public:
-    AstStringLiteral(const std::string &value, const SourceLocation &location);
-    virtual ~AstStringLiteral() = default;
+    AstIntegerLiteral(int64_t value, const SourceLocation &location);
+    virtual ~AstIntegerLiteral() = default;
 
-    const std::string &getValue() const { return m_value; }
+    const int64_t getValue() const { return m_value; }
 
     virtual void visit(AstVisitor *visitor, Module *mod) override;
     virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
@@ -16,12 +16,11 @@ namespace bcparse {
 
     virtual Pointer<AstStatement> clone() const override;
 
-  protected:
-    std::string m_value;
-
   private:
-    inline Pointer<AstStringLiteral> CloneImpl() const {
-      return Pointer<AstStringLiteral>(new AstStringLiteral(
+    int64_t m_value;
+
+    inline Pointer<AstIntegerLiteral> CloneImpl() const {
+      return Pointer<AstIntegerLiteral>(new AstIntegerLiteral(
         m_value,
         m_location
       ));

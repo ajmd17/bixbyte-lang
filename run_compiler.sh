@@ -1,1 +1,1 @@
-./dist/bcparse/bin/bcparse ./examples/test_macro
+./dist/bcparse/bin/bcparse ./examples/meta

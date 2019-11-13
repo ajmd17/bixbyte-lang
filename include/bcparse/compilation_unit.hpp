@@ -1,6 +1,5 @@
 #pragma once
 
-#include <bcparse/macro.hpp>
 #include <bcparse/error_list.hpp>
 #include <bcparse/bound_variables.hpp>
 
@@ -30,14 +29,10 @@ namespace bcparse {
     inline DataStorage *getDataStorage() { return m_dataStorage; }
     inline const DataStorage *getDataStorage() const { return m_dataStorage; }
 
-    void defineMacro(const std::string &name, const std::string &body);
-    Macro *lookupMacro(const std::string &name);
-
     private:
       ErrorList m_errorList;
       BoundVariables m_boundGlobals;
       RegisterUsage m_registerUsage;
       DataStorage *m_dataStorage;
-      std::map<std::string, std::shared_ptr<Macro>> m_macros;
   };
 }

@@ -1,0 +1,25 @@
+
+@macro call {
+  // todo: push addr
+  jmp #{_0}
+}
+
+@macro function {
+  jmp end
+
+funcbody:
+  #{body}
+  jmp endprog // todo: RET instruction
+
+end:
+  @set #{_0} #{funcbody}
+}
+
+@function say_hi {
+  cmp "hello there" 0
+}
+
+@call say_hi
+
+//@say_hi
+endprog:

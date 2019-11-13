@@ -32,6 +32,7 @@ namespace bcparse {
     virtual void optimize(AstVisitor *visitor, Module *mod) = 0;
 
     virtual Pointer<AstStatement> clone() const = 0;
+    virtual bool isHoisted() const;
 
   protected:
     SourceLocation m_location;

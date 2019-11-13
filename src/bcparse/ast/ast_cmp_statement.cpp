@@ -30,7 +30,16 @@ namespace bcparse {
     ASSERT(m_left != nullptr);
     ASSERT(m_right != nullptr);
 
-    // TODO:
+    m_left->build(visitor, mod, out);
+    visitor->getCompilationUnit()->getRegisterUsage().inc();
+
+    m_right->build(visitor, mod, out);
+    visitor->getCompilationUnit()->getRegisterUsage().dec();
+
+    out->append(std::unique_ptr<Op_Cmp>(new Op_Cmp(
+      m_left->getObjLoc(),
+      m_right->getObjLoc()
+    )));
   }
 
   void AstCmpStatement::optimize(AstVisitor *visitor, Module *mod) {

@@ -2,7 +2,7 @@
 #include <bcparse/emit/emit.hpp>
 #include <bcparse/emit/formatter.hpp>
 
-#include <iostream>
+#include <algorithm>
 
 namespace bcparse {
   DataStorage::DataStorage() {
@@ -12,19 +12,27 @@ namespace bcparse {
     : m_values(other.m_values) {
   }
 
-  // caching could be done here possibly?
   size_t DataStorage::addLabel() {
-    size_t id = addStaticData(Value((uint64_t)0xFEEDC0DE));
+    size_t id = addStaticData(Value((uint64_t)0xFEEDC0DE), false /* do not cache placeholder value */);
 
     m_labelOffsets.insert(id);
 
     return id;
   }
 
-  // caching could be done here possibly?
-  size_t DataStorage::addStaticData(const Value &value) {
-    size_t id = m_values.size();
+  size_t DataStorage::addStaticData(const Value &value, bool cache) {
+    if (cache) {
+      auto it = std::find_if(m_values.begin(), m_values.end(), [&value](const Value &otherValue) {
+        return value.getRawBytes() == otherValue.getRawBytes();
+      });
 
+      if (it != m_values.end()) {
+        return it - m_values.begin();
+      }
+    }
+
+    // add new value
+    size_t id = m_values.size();
     m_values.push_back(value);
 
     return id;
@@ -34,9 +42,7 @@ namespace bcparse {
     Buildable::accept(bs);
 
     for (size_t i = 0; i < m_values.size(); i++) {
-      // if (m_labelOffsets.find(i) != m_labelOffsets.end()) {
-        bs->getLabelOffsetMap()[i] = bs->streamOffset();
-      // }
+      bs->getLabelOffsetMap()[i] = bs->streamOffset();
 
       // @TODO assertion that it does not exceed max size
       m_opLoads.push_back(std::unique_ptr<Op_Load>(new Op_Load(

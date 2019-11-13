@@ -16,6 +16,7 @@ namespace bcparse {
   void AstIdentifier::visit(AstVisitor *visitor, Module *mod) {
     if (auto ptr = visitor->getCompilationUnit()->getBoundGlobals().get(m_name)) {
       m_value = ptr;
+      m_value->visit(visitor, mod);
 
       return;
     }
@@ -31,6 +32,8 @@ namespace bcparse {
   void AstIdentifier::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
     if (m_value != nullptr) {
       m_value->build(visitor, mod, out);
+
+      m_objLoc = m_value->getObjLoc();
     }
   }
 

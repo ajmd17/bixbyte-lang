@@ -1,10 +1,12 @@
 #pragma once
 
+#include <bcparse/ast/ast_expression.hpp>
+
+#include <bcparse/macro.hpp>
+
 #include <map>
 #include <string>
 #include <memory>
-
-#include <bcparse/ast/ast_expression.hpp>
 
 template <typename T>
 using Pointer = std::shared_ptr<T>;
@@ -21,8 +23,12 @@ namespace bcparse {
     Pointer<AstExpression> get(const std::string &name);
     void set(const std::string &name, const Pointer<AstExpression> &value);
 
+    void defineMacro(const std::string &name, const std::string &body);
+    Macro *lookupMacro(const std::string &name);
+
   private:
     BoundVariables *m_parent;
     std::map<std::string, Pointer<AstExpression>> m_map;
+    std::map<std::string, std::shared_ptr<Macro>> m_macros;
   };
 }

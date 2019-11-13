@@ -38,6 +38,12 @@ namespace bcparse {
       case TK_STRING:
         ss << "\"" << token.getValue() << "\"";
         break;
+      case TK_LABEL:
+        ss << token.getValue() << ":";
+        break;
+      case TK_DIRECTIVE:
+        ss << "@" << token.getValue();
+        break;
       case TK_INTERPOLATION:
         ss << "#{" << token.getValue() << "}";
         break;
@@ -55,14 +61,14 @@ namespace bcparse {
   }
 
   Token::Token(TokenClass tokenClass, const std::string &value, const SourceLocation &location)
-      : m_tokenClass(tokenClass),
-        m_value(value),
-        m_location(location) {
+    : m_tokenClass(tokenClass),
+      m_value(value),
+      m_location(location) {
   }
 
   Token::Token(const Token &other)
-      : m_tokenClass(other.m_tokenClass),
-        m_value(other.m_value),
-        m_location(other.m_location) {
+    : m_tokenClass(other.m_tokenClass),
+      m_value(other.m_value),
+      m_location(other.m_location) {
   }
 }

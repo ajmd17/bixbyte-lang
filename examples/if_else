@@ -1,0 +1,30 @@
+@macro if {
+  cmp #{_0} 0
+  je _else
+
+  #{body}
+  jmp _end
+
+_else:
+  @get else_body
+
+_end:
+
+  @macro else {
+    @set else_body body
+  }
+}
+
+
+@if 1 {
+  jmp endprogram
+
+  @else {
+    jmp infiniteloop
+  }
+}
+
+infiniteloop:
+  jmp infiniteloop
+endprogram:
+

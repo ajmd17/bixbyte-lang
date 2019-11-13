@@ -1,5 +1,8 @@
+#include <typeinfo>
+
 #include <bcparse/parser.hpp>
 #include <bcparse/lexer.hpp>
+#include <bcparse/analyzer.hpp>
 #include <bcparse/source_file.hpp>
 #include <bcparse/source_stream.hpp>
 
@@ -7,6 +10,8 @@
 #include <bcparse/ast/ast_label_decl.hpp>
 #include <bcparse/ast/ast_label.hpp>
 #include <bcparse/ast/ast_string_literal.hpp>
+#include <bcparse/ast/ast_integer_literal.hpp>
+#include <bcparse/ast/ast_data_location.hpp>
 #include <bcparse/ast/ast_identifier.hpp>
 #include <bcparse/ast/ast_jmp_statement.hpp>
 #include <bcparse/ast/ast_cmp_statement.hpp>
@@ -121,12 +126,28 @@ namespace bcparse {
   void Parser::parse() {
     skipStatementTerminators();
 
+    // first pass; hoist macro definitions
+    std::vector<Pointer<AstStatement>> hoisted;
+    std::vector<Pointer<AstStatement>> otherStmts;
+
     while (m_tokenStream->hasNext()) {
       if (auto stmt = parseStatement()) {
-        m_astIterator->push(stmt);
+        if (stmt->isHoisted()) {
+          hoisted.push_back(stmt);
+        } else {
+          otherStmts.push_back(stmt);
+        }
       } else {
         break;
       }
+    }
+
+    for (const auto &stmt : hoisted) {
+      m_astIterator->push(stmt);
+    }
+
+    for (const auto &stmt : otherStmts) {
+      m_astIterator->push(stmt);
     }
   }
 
@@ -199,13 +220,17 @@ namespace bcparse {
     } else if (match(Token::TK_OPEN_BRACKET)) {
       // expr = parseArrayExpression();
     } else if (match(Token::TK_INTEGER)) {
-      // expr = parseIntegerLiteral();
+      expr = parseIntegerLiteral();
     } else if (match(Token::TK_FLOAT)) {
       // expr = parseFloatLiteral();
     } else if (match(Token::TK_STRING)) {
       expr = parseStringLiteral();
     } else if (match(Token::TK_INTERPOLATION)) {
       expr = parseInterpolation();
+    } else if (match(Token::TK_REG)) {
+      expr = parseRegister();
+    } else if (match(Token::TK_LOCAL)) {
+      expr = parseLocal();
     } else {
       if (token.getTokenClass() == Token::TK_NEWLINE) {
         m_compilationUnit->getErrorList().addError(CompilerError(
@@ -236,6 +261,21 @@ namespace bcparse {
     if (Token token = expect(Token::TK_IDENT, true)) {
       return Pointer<AstIdentifier>(new AstIdentifier(
         token.getValue(),
+        token.getLocation()
+      ));
+    }
+
+    return nullptr;
+  }
+
+  Pointer<AstIntegerLiteral> Parser::parseIntegerLiteral() {
+    if (Token token = expect(Token::TK_INTEGER, true)) {
+      std::istringstream ss(token.getValue());
+      int64_t value;
+      ss >> value;
+
+      return Pointer<AstIntegerLiteral>(new AstIntegerLiteral(
+        value,
         token.getLocation()
       ));
     }
@@ -305,6 +345,7 @@ namespace bcparse {
   Pointer<AstLabelDecl> Parser::parseLabel() {
     if (Token token = expect(Token::TK_LABEL, true)) {
       // add forward declaration for labels
+      std::cout << "add label " << token.getValue() << "\n";
       Pointer<AstLabel> astLabel(new AstLabel(token.getValue(), token.getLocation()));
       m_compilationUnit->getBoundGlobals().set(token.getValue(), astLabel);
 
@@ -329,6 +370,8 @@ namespace bcparse {
       };
 
       if (jumpModeStrings.find(token.getValue()) != jumpModeStrings.end()) {
+        // m_tokenStream->next();
+
         auto expr = parseExpression();
 
         if (!expr) {
@@ -341,6 +384,8 @@ namespace bcparse {
           token.getLocation()
         ));
       } else if (token.getValue() == "cmp") {
+        // m_tokenStream->next();
+
         auto left = parseExpression();
 
         if (!left) {
@@ -359,14 +404,20 @@ namespace bcparse {
           token.getLocation()
         ));
       } else {
-        m_compilationUnit->getErrorList().addError(CompilerError(
-          LEVEL_ERROR,
-          Msg_unknown_opcode,
-          token.getLocation(),
-          token.getValue()
-        ));
+        m_tokenStream->rewind();
+        // TODO: a flag to allow identifiers at top level? (for interpolations)
+        return parseIdentifier();
+
+        // m_compilationUnit->getErrorList().addError(CompilerError(
+        //   LEVEL_ERROR,
+        //   Msg_unknown_opcode,
+        //   token.getLocation(),
+        //   token.getValue()
+        // ));
       } // .. more
     }
+
+    m_tokenStream->next();
 
     return nullptr;
   }
@@ -374,6 +425,8 @@ namespace bcparse {
   Pointer<AstExpression> Parser::parseInterpolation() {
     Token token = expect(Token::TK_INTERPOLATION, true);
     if (token.empty()) return nullptr;
+
+    Pointer<AstExpression> res;
 
     // @TODO evaluate in-place and return the transformed result.
     // @macro directives build their own lexers+parsers with variables that are needed in place.
@@ -400,7 +453,7 @@ namespace bcparse {
       case Token::TK_IDENT:
         // return parseIdentifier();
         if (auto value = m_compilationUnit->getBoundGlobals().get(token.getValue())) {
-          return value; // @TODO build expression, not just return value
+          return value;
         } else {
           m_compilationUnit->getErrorList().addError(CompilerError(
             LEVEL_ERROR,
@@ -418,6 +471,71 @@ namespace bcparse {
           token.getLocation()
         ));
       }
+    }
+
+    return nullptr;
+
+#if 0
+    AstIterator iterator;
+    Parser subparser(&iterator, &tokenStream, &subUnit);
+    subparser.parse();
+
+    iterator.resetPosition();
+
+    Analyzer analyzer(&iterator, &subUnit);
+    analyzer.analyze();
+
+    for (auto &error : subUnit.getErrorList().getErrors()) {
+      m_compilationUnit->getErrorList().addError(error);
+    }
+
+    if (!subUnit.getErrorList().hasFatalErrors()) {
+      iterator.resetPosition();
+
+      if (iterator.hasNext()) {
+        res = std::dynamic_pointer_cast<AstExpression>(iterator.next());
+      }
+
+      if (res == nullptr) {
+        m_compilationUnit->getErrorList().addError(CompilerError(
+          LEVEL_ERROR,
+          Msg_illegal_expression,
+          token.getLocation()
+        ));
+      }
+    }
+
+    return res;
+#endif
+  }
+
+  Pointer<AstDataLocation> Parser::parseRegister() {
+    if (Token token = expect(Token::TK_REG, true)) {
+      std::istringstream ss(token.getValue());
+      int value;
+      ss >> value;
+
+      return Pointer<AstDataLocation>(new AstDataLocation(
+        value,
+        ObjLoc::DataStoreLocation::RegisterDataStore,
+        token.getLocation()
+      ));
+    }
+
+    return nullptr;
+  }
+
+  Pointer<AstDataLocation> Parser::parseLocal() {
+    if (Token token = expect(Token::TK_LOCAL, true)) {
+      std::istringstream ss(token.getValue());
+      int value;
+      ss >> value;
+
+      return Pointer<AstDataLocation>(new AstDataLocation(
+        value,
+        ObjLoc::DataStoreLocation::LocalDataStore,
+        token.getLocation()
+      ));
     }
 
     return nullptr;

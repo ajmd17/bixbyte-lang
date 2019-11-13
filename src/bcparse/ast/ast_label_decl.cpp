@@ -34,8 +34,6 @@ namespace bcparse {
 
     m_astLabel->build(visitor, mod, out);
 
-    size_t id = m_astLabel->getObjLoc().getLocation();
-
     out->append(std::unique_ptr<LabelMarker>(new LabelMarker(
       m_astLabel->getObjLoc().getLocation()
     )));

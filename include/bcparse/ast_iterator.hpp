@@ -21,6 +21,8 @@ namespace bcparse {
     inline void setPosition(size_t position) { m_position = position; }
     inline void resetPosition() { m_position = 0; }
 
+    inline size_t size() const { return m_list.size(); }
+
     inline Pointer<AstStatement> &peek() { return m_list[m_position]; }
     inline const Pointer<AstStatement> &peek() const { return m_list[m_position]; }
     inline Pointer<AstStatement> next() { return m_list[m_position++]; }
