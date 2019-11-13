@@ -29,4 +29,8 @@ namespace bcparse {
   Pointer<AstStatement> AstLabel::clone() const {
     return CloneImpl();
   }
+
+  std::string AstLabel::toString() const {
+    return std::string("Label(") + m_name + ")";
+  }
 }

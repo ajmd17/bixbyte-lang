@@ -5,6 +5,8 @@
 
 #include <bcparse/emit/emit.hpp>
 
+#include <common/my_assert.hpp>
+
 namespace bcparse {
   AstIdentifier::AstIdentifier(const std::string &name,
     const SourceLocation &location)
@@ -30,11 +32,11 @@ namespace bcparse {
   }
 
   void AstIdentifier::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
-    if (m_value != nullptr) {
-      m_value->build(visitor, mod, out);
+    ASSERT(m_value != nullptr);
 
-      m_objLoc = m_value->getObjLoc();
-    }
+    m_value->build(visitor, mod, out);
+
+    m_objLoc = m_value->getObjLoc();
   }
 
   void AstIdentifier::optimize(AstVisitor *visitor, Module *mod) {
@@ -43,5 +45,14 @@ namespace bcparse {
 
   Pointer<AstStatement> AstIdentifier::clone() const {
     return CloneImpl();
+  }
+
+  AstExpression *AstIdentifier::getValueOf() {
+    return this;
+    // if (m_value == nullptr) {
+    //   return nullptr;
+    // }
+
+    // return m_value->getValueOf();
   }
 }

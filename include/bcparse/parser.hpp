@@ -14,6 +14,7 @@ namespace bcparse {
   class AstStringLiteral;
   class AstIntegerLiteral;
   class AstIdentifier;
+  class AstInterpolation;
   class AstLabelDecl;
   class AstDataLocation;
 

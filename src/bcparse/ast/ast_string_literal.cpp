@@ -5,6 +5,8 @@
 
 #include <bcparse/emit/emit.hpp>
 
+#include <common/str_util.hpp>
+
 namespace bcparse {
   AstStringLiteral::AstStringLiteral(const std::string &value,
     const SourceLocation &location)
@@ -30,5 +32,9 @@ namespace bcparse {
 
   Pointer<AstStatement> AstStringLiteral::clone() const {
     return CloneImpl();
+  }
+
+  std::string AstStringLiteral::toString() const {
+    return std::string("\"") + str_util::escape_string(m_value) + "\"";
   }
 }

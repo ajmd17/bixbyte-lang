@@ -17,6 +17,7 @@ namespace bcparse {
     virtual void optimize(AstVisitor *visitor, Module *mod) override;
 
     virtual Pointer<AstStatement> clone() const override;
+    virtual std::string toString() const override;
 
   private:
     std::string m_name;

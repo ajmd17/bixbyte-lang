@@ -12,6 +12,7 @@ using Pointer = std::shared_ptr<T>;
 
 namespace bcparse {
   class AstIterator;
+  class AstCodeBody;
   class CompilationUnit;
 
   class AstDirectiveImpl {
@@ -26,6 +27,8 @@ namespace bcparse {
     virtual void visit(AstVisitor *visitor, Module *mod) = 0;
     virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) = 0;
     virtual void optimize(AstVisitor *visitor, Module *mod) = 0;
+
+    void visitArguments(AstVisitor *visitor, Module *mod);
 
     std::vector<Pointer<AstExpression>> m_arguments;
     std::string m_body;
@@ -72,6 +75,38 @@ namespace bcparse {
 
   private:
     Pointer<AstExpression> m_value;
+  };
+
+  class AstYieldDirective : public AstDirectiveImpl {
+    friend class AstDirective;
+  protected:
+    AstYieldDirective(const std::vector<Pointer<AstExpression>> &arguments,
+      const std::string &body,
+      const SourceLocation &location);
+    virtual ~AstYieldDirective() override;
+
+    virtual void visit(AstVisitor *visitor, Module *mod) override;
+    virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
+    virtual void optimize(AstVisitor *visitor, Module *mod) override;
+
+  private:
+    Pointer<AstCodeBody> m_codeBody;
+  };
+
+  class AstDebugDirective : public AstDirectiveImpl {
+    friend class AstDirective;
+  protected:
+    AstDebugDirective(const std::vector<Pointer<AstExpression>> &arguments,
+      const std::string &body,
+      const SourceLocation &location);
+    virtual ~AstDebugDirective() override;
+
+    virtual void visit(AstVisitor *visitor, Module *mod) override;
+    virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
+    virtual void optimize(AstVisitor *visitor, Module *mod) override;
+
+  private:
+    std::string nodeToString(AstVisitor *visitor, AstExpression *node);
   };
 
   class AstUserDefinedDirective : public AstDirectiveImpl {

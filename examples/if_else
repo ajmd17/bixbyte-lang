@@ -1,3 +1,10 @@
+@macro myyield {
+  @macro #{_0} {
+    @set #{_0} #{body}
+  }
+  @get #{_0}
+}
+
 @macro if {
   cmp #{_0} 0
   je _else
@@ -6,15 +13,14 @@
   jmp _end
 
 _else:
-  @get else_body
+  #{else_body}
 
 _end:
-
   @macro else {
-    @set else_body body
+    @debug vars
+    @set else_body #{body}
   }
 }
-
 
 @if 1 {
   jmp endprogram

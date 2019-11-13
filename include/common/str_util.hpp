@@ -1,10 +1,10 @@
-#ifndef STR_UTIL_HPP
-#define STR_UTIL_HPP
+#pragma once
 
 #include <string>
 #include <vector>
 #include <algorithm>
 #include <functional>
+#include <sstream>
 #include <cctype>
 #include <locale>
 
@@ -40,7 +40,7 @@ inline std::string trim(std::string s) {
 
 inline std::vector<std::string> split_path(const std::string &str) {
     std::vector<std::string> res;
-    
+
     std::string tmp;
     for (char ch : str) {
         if (ch == '\\' || ch == '/') {
@@ -78,7 +78,7 @@ inline std::vector<std::string> canonicalize_path(const std::vector<std::string>
 
 inline std::string path_to_str(const std::vector<std::string> &path) {
     std::string res;
-    
+
     for (size_t i = 0; i < path.size(); i++) {
         res += path[i];
         if (i != path.size() - 1) {
@@ -89,6 +89,26 @@ inline std::string path_to_str(const std::vector<std::string> &path) {
     return res;
 }
 
-} // str_util
+std::string escape_string(const std::string &str) {
+    std::stringstream ss;
 
-#endif
+    for (size_t i = 0; i < str.length(); i++) {
+        char c = str[i];
+
+        if (c == '\t') {
+            ss << "\\t";
+        } else if (c == '\n') {
+            ss << "\\n";
+        } else if (c == '\r') {
+            ss << "\\r";
+        } else if (c == '"') {
+            ss << "\\\"";
+        } else {
+            ss << c;
+        }
+    }
+
+    return ss.str();
+}
+
+} // str_util

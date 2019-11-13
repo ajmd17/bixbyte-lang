@@ -13,6 +13,7 @@
 #include <bcparse/ast/ast_integer_literal.hpp>
 #include <bcparse/ast/ast_data_location.hpp>
 #include <bcparse/ast/ast_identifier.hpp>
+#include <bcparse/ast/ast_interpolation.hpp>
 #include <bcparse/ast/ast_jmp_statement.hpp>
 #include <bcparse/ast/ast_cmp_statement.hpp>
 
@@ -345,7 +346,6 @@ namespace bcparse {
   Pointer<AstLabelDecl> Parser::parseLabel() {
     if (Token token = expect(Token::TK_LABEL, true)) {
       // add forward declaration for labels
-      std::cout << "add label " << token.getValue() << "\n";
       Pointer<AstLabel> astLabel(new AstLabel(token.getValue(), token.getLocation()));
       m_compilationUnit->getBoundGlobals().set(token.getValue(), astLabel);
 
@@ -426,8 +426,6 @@ namespace bcparse {
     Token token = expect(Token::TK_INTERPOLATION, true);
     if (token.empty()) return nullptr;
 
-    Pointer<AstExpression> res;
-
     // @TODO evaluate in-place and return the transformed result.
     // @macro directives build their own lexers+parsers with variables that are needed in place.
     // eventually, use reverse polish notation to evaluate, allowing simple operations
@@ -445,6 +443,7 @@ namespace bcparse {
     Lexer lexer(sourceStream, &tokenStream, &subUnit);
     lexer.analyze();
 
+#if 0
     while (tokenStream.hasNext()) {
       const Token token = tokenStream.next();
 
@@ -454,6 +453,10 @@ namespace bcparse {
         // return parseIdentifier();
         if (auto value = m_compilationUnit->getBoundGlobals().get(token.getValue())) {
           return value;
+          // return Pointer<AstInterpolation>(new AstInterpolation(
+          //   value,
+          //   token.getLocation()
+          // ));
         } else {
           m_compilationUnit->getErrorList().addError(CompilerError(
             LEVEL_ERROR,
@@ -475,37 +478,47 @@ namespace bcparse {
 
     return nullptr;
 
-#if 0
+#else
     AstIterator iterator;
     Parser subparser(&iterator, &tokenStream, &subUnit);
-    subparser.parse();
+    // subparser.parse();
 
-    iterator.resetPosition();
+    // iterator.resetPosition();
 
-    Analyzer analyzer(&iterator, &subUnit);
-    analyzer.analyze();
+    // Analyzer analyzer(&iterator, &subUnit);
+    // analyzer.analyze();
+
+
+    Pointer<AstExpression> expr = subparser.parseExpression();
 
     for (auto &error : subUnit.getErrorList().getErrors()) {
       m_compilationUnit->getErrorList().addError(error);
     }
 
     if (!subUnit.getErrorList().hasFatalErrors()) {
-      iterator.resetPosition();
+      // iterator.resetPosition();
 
-      if (iterator.hasNext()) {
-        res = std::dynamic_pointer_cast<AstExpression>(iterator.next());
-      }
+      // if (iterator.hasNext()) {
+      //   expr = std::dynamic_pointer_cast<AstExpression>(iterator.next());
+      // }
 
-      if (res == nullptr) {
+      if (expr == nullptr) {
         m_compilationUnit->getErrorList().addError(CompilerError(
           LEVEL_ERROR,
           Msg_illegal_expression,
           token.getLocation()
         ));
+
+        return nullptr;
       }
+
+      return Pointer<AstInterpolation>(new AstInterpolation(
+        expr,
+        token.getLocation()
+      ));
     }
 
-    return res;
+    return nullptr;
 #endif
   }
 

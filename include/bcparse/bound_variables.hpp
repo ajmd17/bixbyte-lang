@@ -26,6 +26,8 @@ namespace bcparse {
     void defineMacro(const std::string &name, const std::string &body);
     Macro *lookupMacro(const std::string &name);
 
+    std::map<std::string, Pointer<AstExpression>> &getMap() { return m_map; }
+
   private:
     BoundVariables *m_parent;
     std::map<std::string, Pointer<AstExpression>> m_map;

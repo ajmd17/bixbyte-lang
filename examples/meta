@@ -15,11 +15,15 @@ end:
   @set #{_0} #{funcbody}
 }
 
-@function say_hi {
-  cmp "hello there" 0
+@macro puts {
+
 }
 
-@call say_hi
+@function say_hi {
+  //@puts "hello there"
+}
+
+//@call say_hi
 
 //@say_hi
 endprog:

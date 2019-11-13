@@ -3,12 +3,11 @@
 #include <bcparse/ast/ast_expression.hpp>
 
 namespace bcparse {
-  class AstIdentifier : public AstExpression {
+  class AstInterpolation : public AstExpression {
   public:
-    AstIdentifier(const std::string &name, const SourceLocation &location);
-    virtual ~AstIdentifier() = default;
+    AstInterpolation(Pointer<AstExpression> value, const SourceLocation &location);
+    virtual ~AstInterpolation() = default;
 
-    const std::string &getName() const { return m_name; }
     const Pointer<AstExpression> &getValue() const { return m_value; }
 
     virtual void visit(AstVisitor *visitor, Module *mod) override;
@@ -19,14 +18,11 @@ namespace bcparse {
     virtual AstExpression *getValueOf() override;
 
   private:
-    std::string m_name;
-
-    // set during walk
     Pointer<AstExpression> m_value;
 
-    inline Pointer<AstIdentifier> CloneImpl() const {
-      return Pointer<AstIdentifier>(new AstIdentifier(
-        m_name,
+    inline Pointer<AstInterpolation> CloneImpl() const {
+      return Pointer<AstInterpolation>(new AstInterpolation(
+        cloneAstNode(m_value),
         m_location
       ));
     }

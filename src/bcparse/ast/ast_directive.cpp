@@ -1,5 +1,6 @@
 #include <bcparse/ast/ast_directive.hpp>
 #include <bcparse/ast/ast_string_literal.hpp>
+#include <bcparse/ast/ast_integer_literal.hpp>
 #include <bcparse/ast/ast_identifier.hpp>
 #include <bcparse/ast/ast_code_body.hpp>
 
@@ -17,6 +18,7 @@
 
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 namespace bcparse {
   AstDirectiveImpl::AstDirectiveImpl(const std::vector<Pointer<AstExpression>> &arguments,
@@ -25,6 +27,14 @@ namespace bcparse {
     : m_arguments(arguments),
       m_body(body),
       m_location(location) {
+  }
+
+  void AstDirectiveImpl::visitArguments(AstVisitor *visitor, Module *mod) {
+    for (auto &arg : m_arguments) {
+      ASSERT(arg != nullptr);
+
+      arg->visit(visitor, mod);
+    }
   }
 
   AstMacroDirective::AstMacroDirective(const std::vector<Pointer<AstExpression>> &arguments,
@@ -39,7 +49,7 @@ namespace bcparse {
   void AstMacroDirective::visit(AstVisitor *visitor, Module *mod) {
     const size_t numErrors = visitor->getCompilationUnit()->getErrorList().m_errors.size();
 
-    Pointer<AstIdentifier> nameArg = nullptr;
+    AstIdentifier *nameArg = nullptr;
 
     if (m_arguments.size() != 1) {
       visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
@@ -49,7 +59,9 @@ namespace bcparse {
         "@macro requires arguments (name)"
       ));
     } else {
-      nameArg = std::dynamic_pointer_cast<AstIdentifier>(m_arguments[0]);
+      if (m_arguments[0] != nullptr && m_arguments[0]->getValueOf() != nullptr) {
+        nameArg = dynamic_cast<AstIdentifier*>(m_arguments[0]->getValueOf());
+      }
 
       if (nameArg == nullptr) {
         visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
@@ -102,7 +114,7 @@ namespace bcparse {
   }
 
   void AstGetDirective::visit(AstVisitor *visitor, Module *mod) {
-    Pointer<AstIdentifier> nameArg = nullptr;
+    AstIdentifier *nameArg = nullptr;
 
     if (m_arguments.size() != 1) {
       visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
@@ -112,7 +124,9 @@ namespace bcparse {
         "@get requires arguments (key)"
       ));
     } else {
-      nameArg = std::dynamic_pointer_cast<AstIdentifier>(m_arguments[0]);
+      if (m_arguments[0] != nullptr && m_arguments[0]->getValueOf() != nullptr) {
+        nameArg = dynamic_cast<AstIdentifier*>(m_arguments[0]->getValueOf());
+      }
 
       if (nameArg == nullptr) {
         visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
@@ -151,8 +165,8 @@ namespace bcparse {
   }
 
   void AstSetDirective::visit(AstVisitor *visitor, Module *mod) {
-    Pointer<AstIdentifier> nameArg = nullptr;
-    Pointer<AstExpression> valueArg = nullptr;
+    AstIdentifier *nameArg = nullptr;
+    AstExpression *valueArg = nullptr;
 
     if (m_arguments.size() != 2) {
       visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
@@ -162,7 +176,9 @@ namespace bcparse {
         "@set requires arguments (key, value)"
       ));
     } else {
-      nameArg = std::dynamic_pointer_cast<AstIdentifier>(m_arguments[0]);
+      if (m_arguments[0] != nullptr && m_arguments[0]->getValueOf() != nullptr) {
+        nameArg = dynamic_cast<AstIdentifier*>(m_arguments[0]->getValueOf());
+      }
 
       if (nameArg == nullptr) {
         visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
@@ -173,14 +189,22 @@ namespace bcparse {
         ));
       }
 
-      valueArg = std::dynamic_pointer_cast<AstExpression>(m_arguments[1]);
+      valueArg = m_arguments[1].get();
+
+      if (valueArg != nullptr) {
+        valueArg->visit(visitor, mod);
+
+        if (valueArg->getValueOf() != nullptr) {
+          valueArg = valueArg->getValueOf();
+        }
+      }
 
       if (valueArg == nullptr) {
         visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
           LEVEL_ERROR,
           Msg_custom_error,
           m_location,
-          "@set (value) must be an identifier"
+          "@set (value) must be an expression"
         ));
       }
 
@@ -197,7 +221,11 @@ namespace bcparse {
           boundVariables = boundVariables->getParent();
         }
 
-        boundVariables->set(nameArg->getName(), valueArg);
+        Pointer<AstExpression> clonedExpr = std::dynamic_pointer_cast<AstExpression>(valueArg->clone());
+
+        boundVariables->set(nameArg->getName(), clonedExpr);
+
+        // clonedExpr->visit(visitor, mod);
       }
     }
   }
@@ -206,6 +234,153 @@ namespace bcparse {
   }
 
   void AstSetDirective::optimize(AstVisitor *visitor, Module *mod) {
+  }
+
+
+  AstYieldDirective::AstYieldDirective(const std::vector<Pointer<AstExpression>> &arguments,
+    const std::string &body,
+    const SourceLocation &location)
+    : AstDirectiveImpl(arguments, body, location) {
+  }
+
+  AstYieldDirective::~AstYieldDirective() {
+  }
+
+  void AstYieldDirective::visit(AstVisitor *visitor, Module *mod) {
+    AstIdentifier *nameArg = nullptr;
+
+    if (m_arguments.size() != 1) {
+      visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
+        LEVEL_ERROR,
+        Msg_custom_error,
+        m_location,
+        "@yield requires arguments (key)"
+      ));
+    } else {
+      if (m_arguments[0] != nullptr && m_arguments[0]->getValueOf() != nullptr) {
+        nameArg = dynamic_cast<AstIdentifier*>(m_arguments[0]->getValueOf());
+      }
+
+      if (nameArg == nullptr) {
+        visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
+          LEVEL_ERROR,
+          Msg_custom_error,
+          m_location,
+          "@yield (key) must be an identifier"
+        ));
+      }
+
+      if (nameArg != nullptr) {
+        // TODO: define a macro named by whatever name was provided,
+        // and make the body of the macro set a variable to contain the yielded body
+        std::string macroName = nameArg->getName();
+        std::string varName = std::string("__") + macroName + "__yield_body";
+
+        // Pointer<AstDirective> macroDeclareDirective(new AstDirective(
+        //   "macro",
+        //   { Pointer<AstIdentifier>(new AstIdentifier(macroName, m_location)) },
+        //   std::string("@set ") + varName + " #{body}",
+        //   m_location
+        // ));
+
+        // Pointer<AstDirective> bodyOutputDirective(new AstDirective(
+        //   "get",
+        //   { Pointer<AstIdentifier>(new AstIdentifier(varName, m_location)) },
+        //   "",
+        //   m_location
+        // ));
+        m_codeBody = Pointer<AstCodeBody>(new AstCodeBody(
+          std::string("@macro ") + macroName + " {\n"
+            + std::string("  @set ") + varName + " #{body}\n"
+            + std::string("}\n")
+            + std::string("@get ") + varName + "\n",
+          m_location
+        ));
+
+        m_codeBody->visit(visitor, mod);
+      }
+    }
+  }
+
+  void AstYieldDirective::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
+    ASSERT(m_codeBody != nullptr);
+
+    m_codeBody->build(visitor, mod, out);
+  }
+
+  void AstYieldDirective::optimize(AstVisitor *visitor, Module *mod) {
+  }
+
+
+  AstDebugDirective::AstDebugDirective(const std::vector<Pointer<AstExpression>> &arguments,
+    const std::string &body,
+    const SourceLocation &location)
+    : AstDirectiveImpl(arguments, body, location) {
+  }
+
+  AstDebugDirective::~AstDebugDirective() {
+  }
+
+  void AstDebugDirective::visit(AstVisitor *visitor, Module *mod) {
+    std::cout << "@debug says:  ";
+
+    for (size_t i = 0; i < m_arguments.size(); i++) {
+      auto arg = m_arguments[i];
+
+      if (arg != nullptr) {
+        arg->visit(visitor, mod);
+      }
+
+      std::cout << nodeToString(visitor, arg.get()) << "  ";
+    }
+
+    std::cout << "\n";
+  }
+
+  void AstDebugDirective::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
+  }
+
+  void AstDebugDirective::optimize(AstVisitor *visitor, Module *mod) {
+  }
+
+  std::string AstDebugDirective::nodeToString(AstVisitor *visitor, AstExpression *node) {
+    std::stringstream ss;
+
+    if (node == nullptr || node->getValueOf() == nullptr) {
+      ss << "nullptr";
+    } else if (auto asIdent = dynamic_cast<AstIdentifier*>(node->getValueOf())) {
+      if (asIdent->getName() == "vars") {
+        // if currently in global scope, set the var as a global.
+        // if not, bubble up to the scope highest enough to not reach global
+        BoundVariables *root = &visitor->getCompilationUnit()->getBoundGlobals();
+        std::vector<std::map<std::string, Pointer<AstExpression>>*> allBound;
+
+        while (root->getParent() != nullptr) {
+          allBound.push_back(&root->getMap());
+          root = root->getParent();
+        }
+
+        std::reverse(allBound.begin(), allBound.end());
+
+        for (size_t i = 0; i < allBound.size(); i++) {
+          ss << "\n";
+
+          for (auto it : *allBound[i]) {
+            for (int j = 0; j < i; j++) {
+              ss << "  ";
+            }
+
+            ss << it.first << ": " << nodeToString(visitor, it.second.get()) << "\n";
+          }
+        }
+      } else {
+        ss << nodeToString(visitor, asIdent->getValue().get());
+      }
+    } else {
+      ss << node->toString();
+    }
+
+    return ss.str();
   }
 
 
@@ -272,7 +447,6 @@ namespace bcparse {
       m_compilationUnit->getBoundGlobals().set(ss.str(), m_arguments[i]);
     }
 
-    // TODO: Make it be AstCodeBody which evaluates the body passed
     m_compilationUnit->getBoundGlobals().set("body", Pointer<AstCodeBody>(
       new AstCodeBody(m_body, m_location)));
 
@@ -334,6 +508,10 @@ namespace bcparse {
       m_impl = new AstGetDirective(m_arguments, m_body, m_location);
     } else if (m_name == "set") {
       m_impl = new AstSetDirective(m_arguments, m_body, m_location);
+    } else if (m_name == "yield") {
+      m_impl = new AstYieldDirective(m_arguments, m_body, m_location);
+    } else if (m_name == "debug") {
+      m_impl = new AstDebugDirective(m_arguments, m_body, m_location);
     } else if (visitor->getCompilationUnit()->getBoundGlobals().lookupMacro(m_name)) {
       m_impl = new AstUserDefinedDirective(m_name, m_arguments, m_body, m_location);
     }

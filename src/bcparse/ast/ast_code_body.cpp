@@ -10,11 +10,14 @@
 #include <bcparse/bound_variables.hpp>
 #include <bcparse/source_file.hpp>
 
+#include <common/str_util.hpp>
+
 #include <sstream>
 
 namespace bcparse {
   AstCodeBody::AstCodeBody(const std::string &value, const SourceLocation &location)
-    : AstStringLiteral(value, location),
+    : AstExpression(location),
+      m_value(value),
       m_iterator(nullptr),
       m_compilationUnit(nullptr) {
   }
@@ -32,9 +35,11 @@ namespace bcparse {
   }
 
   void AstCodeBody::visit(AstVisitor *visitor, Module *mod) {
-    if (m_compilationUnit != nullptr && m_iterator != nullptr) {
-      return;
-    }
+    // if (m_compilationUnit != nullptr && m_iterator != nullptr) {
+    //   return;
+    // }
+    ASSERT(m_compilationUnit == nullptr);
+    ASSERT(m_iterator == nullptr);
 
     SourceFile sourceFile(m_location.getFileName(), m_value.length());
     std::memcpy(sourceFile.getBuffer(), m_value.data(), m_value.length());
@@ -74,5 +79,16 @@ namespace bcparse {
     std::unique_ptr<BytecodeChunk> sub(new BytecodeChunk);
     compiler.compile(sub.get(), false);
     out->append(std::move(sub));
+  }
+
+  void AstCodeBody::optimize(AstVisitor *visitor, Module *mod) {
+  }
+
+  Pointer<AstStatement> AstCodeBody::clone() const {
+    return CloneImpl();
+  }
+
+  std::string AstCodeBody::toString() const {
+    return std::string("CodeBody(\"") + str_util::escape_string(m_value) + "\"";
   }
 }

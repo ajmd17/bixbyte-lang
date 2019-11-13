@@ -5,6 +5,8 @@
 
 #include <bcparse/emit/emit.hpp>
 
+#include <sstream>
+
 namespace bcparse {
   AstIntegerLiteral::AstIntegerLiteral(int64_t value,
     const SourceLocation &location)
@@ -32,5 +34,12 @@ namespace bcparse {
 
   Pointer<AstStatement> AstIntegerLiteral::clone() const {
     return CloneImpl();
+  }
+
+  std::string AstIntegerLiteral::toString() const {
+    std::stringstream ss;
+    ss << m_value;
+
+    return ss.str();
   }
 }
