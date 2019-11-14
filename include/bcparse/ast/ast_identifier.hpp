@@ -17,6 +17,7 @@ namespace bcparse {
 
     virtual Pointer<AstStatement> clone() const override;
     virtual AstExpression *getValueOf() override;
+    virtual AstExpression *getDeepValueOf() override;
 
   private:
     std::string m_name;

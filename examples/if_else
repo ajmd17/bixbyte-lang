@@ -2,6 +2,7 @@
   @macro #{_0} {
     @set #{_0} #{body}
   }
+
   @get #{_0}
 }
 
@@ -12,12 +13,13 @@
   #{body}
   jmp _end
 
+  #{#{#{_0}}}
+
 _else:
   #{else_body}
 
 _end:
   @macro else {
-    @debug vars
     @set else_body #{body}
   }
 }

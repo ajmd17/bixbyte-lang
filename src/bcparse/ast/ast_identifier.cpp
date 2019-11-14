@@ -49,10 +49,13 @@ namespace bcparse {
 
   AstExpression *AstIdentifier::getValueOf() {
     return this;
-    // if (m_value == nullptr) {
-    //   return nullptr;
-    // }
+  }
 
-    // return m_value->getValueOf();
+  AstExpression *AstIdentifier::getDeepValueOf() {
+    if (m_value == nullptr) {
+      return nullptr;
+    }
+
+    return m_value->getDeepValueOf();
   }
 }

@@ -35,11 +35,9 @@ namespace bcparse {
   }
 
   void AstCodeBody::visit(AstVisitor *visitor, Module *mod) {
-    // if (m_compilationUnit != nullptr && m_iterator != nullptr) {
-    //   return;
-    // }
-    ASSERT(m_compilationUnit == nullptr);
-    ASSERT(m_iterator == nullptr);
+    if (m_compilationUnit != nullptr && m_iterator != nullptr) {
+      return;
+    }
 
     SourceFile sourceFile(m_location.getFileName(), m_value.length());
     std::memcpy(sourceFile.getBuffer(), m_value.data(), m_value.length());

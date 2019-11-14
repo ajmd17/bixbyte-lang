@@ -41,14 +41,14 @@ namespace bcparse {
       return nullptr;
     }
 
-    AstExpression *expr = m_value->getValueOf();
-    AstIdentifier *asIdent = dynamic_cast<AstIdentifier*>(expr);
+    return m_value->getValueOf();
+  }
 
-    while (asIdent != nullptr) {
-      expr = asIdent->getValue().get();
-      asIdent = dynamic_cast<AstIdentifier*>(expr);
+  AstExpression *AstInterpolation::getDeepValueOf() {
+    if (m_value == nullptr) {
+      return nullptr;
     }
 
-    return expr;
+    return m_value->getDeepValueOf();
   }
 }

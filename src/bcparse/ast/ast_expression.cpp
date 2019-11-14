@@ -9,6 +9,10 @@ namespace bcparse {
     return this;
   }
 
+  AstExpression *AstExpression::getDeepValueOf() {
+    return getValueOf();
+  }
+
   std::string AstExpression::toString() const {
     return "";
   }

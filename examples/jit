@@ -1,0 +1,14 @@
+@macro jit {
+  jit_begin $s[#{STATIC_SIZE}]
+
+  @set #{_0} $s[#{STATIC_SIZE}]
+  @claim STATIC
+
+  #{body}
+
+  jit_end
+}
+
+@jit fib {
+  // ...
+}

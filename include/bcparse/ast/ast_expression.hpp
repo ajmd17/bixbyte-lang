@@ -10,6 +10,7 @@ namespace bcparse {
     AstExpression(const SourceLocation &location);
 
     virtual AstExpression *getValueOf();
+    virtual AstExpression *getDeepValueOf();
     virtual std::string toString() const;
 
     inline const ObjLoc &getObjLoc() const { return m_objLoc; }

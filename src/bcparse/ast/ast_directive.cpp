@@ -194,8 +194,8 @@ namespace bcparse {
       if (valueArg != nullptr) {
         valueArg->visit(visitor, mod);
 
-        if (valueArg->getValueOf() != nullptr) {
-          valueArg = valueArg->getValueOf();
+        if (valueArg->getDeepValueOf() != nullptr) {
+          valueArg = valueArg->getDeepValueOf();
         }
       }
 
@@ -346,7 +346,7 @@ namespace bcparse {
   std::string AstDebugDirective::nodeToString(AstVisitor *visitor, AstExpression *node) {
     std::stringstream ss;
 
-    if (node == nullptr || node->getValueOf() == nullptr) {
+    if (node == nullptr || node->getDeepValueOf() == nullptr) {
       ss << "nullptr";
     } else if (auto asIdent = dynamic_cast<AstIdentifier*>(node->getValueOf())) {
       if (asIdent->getName() == "vars") {

@@ -89,7 +89,7 @@ inline std::string path_to_str(const std::vector<std::string> &path) {
     return res;
 }
 
-std::string escape_string(const std::string &str) {
+inline std::string escape_string(const std::string &str) {
     std::stringstream ss;
 
     for (size_t i = 0; i < str.length(); i++) {
