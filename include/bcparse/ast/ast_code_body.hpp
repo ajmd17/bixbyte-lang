@@ -1,6 +1,10 @@
 #pragma once
 
+#include <vector>
+
 #include <bcparse/ast/ast_expression.hpp>
+
+#include <bcparse/token.hpp>
 
 namespace bcparse {
   class AstIterator;
@@ -8,7 +12,8 @@ namespace bcparse {
 
   class AstCodeBody : public AstExpression {
   public:
-    AstCodeBody(const std::string &value, const SourceLocation &location);
+    AstCodeBody(const std::vector<Token> &tokens,
+      const SourceLocation &location);
     virtual ~AstCodeBody() override;
 
     virtual void visit(AstVisitor *visitor, Module *mod) override;
@@ -18,15 +23,21 @@ namespace bcparse {
     virtual Pointer<AstStatement> clone() const override;
     virtual std::string toString() const override;
 
-  private:
-    std::string m_value;
+  protected:
+    AstCodeBody(const std::vector<Token> &tokens,
+      const SourceLocation &location,
+      bool variableMode);
+
+    std::vector<Token> m_tokens;
 
     AstIterator *m_iterator;
     CompilationUnit *m_compilationUnit;
+    bool m_variableMode;
 
+  private:
     inline Pointer<AstCodeBody> CloneImpl() const {
       return Pointer<AstCodeBody>(new AstCodeBody(
-        m_value,
+        m_tokens,
         m_location
       ));
     }

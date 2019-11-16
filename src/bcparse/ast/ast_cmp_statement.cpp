@@ -1,5 +1,5 @@
 #include <bcparse/ast/ast_cmp_statement.hpp>
-#include <bcparse/ast/ast_identifier.hpp>
+#include <bcparse/ast/ast_variable.hpp>
 #include <bcparse/ast/ast_label.hpp>
 
 #include <bcparse/ast_visitor.hpp>
@@ -31,9 +31,21 @@ namespace bcparse {
     ASSERT(m_right != nullptr);
 
     m_left->build(visitor, mod, out);
+
+    out->append(std::unique_ptr<Op_Load>(new Op_Load(
+      m_left->getObjLoc(),
+      m_left->getRuntimeValue()
+    )));
+
     visitor->getCompilationUnit()->getRegisterUsage().inc();
 
     m_right->build(visitor, mod, out);
+
+    out->append(std::unique_ptr<Op_Load>(new Op_Load(
+      m_right->getObjLoc(),
+      m_right->getRuntimeValue()
+    )));
+
     visitor->getCompilationUnit()->getRegisterUsage().dec();
 
     out->append(std::unique_ptr<Op_Cmp>(new Op_Cmp(
@@ -43,7 +55,11 @@ namespace bcparse {
   }
 
   void AstCmpStatement::optimize(AstVisitor *visitor, Module *mod) {
-    // constant folding
+    ASSERT(m_left != nullptr);
+    ASSERT(m_right != nullptr);
+
+    m_left->optimize(visitor, mod);
+    m_right->optimize(visitor, mod);
   }
 
   Pointer<AstStatement> AstCmpStatement::clone() const {

@@ -15,7 +15,7 @@ namespace bcparse {
     inline CompilationUnit *getCompilationUnit() const { return m_compilationUnit; }
 
     bool assertCond(bool cond, const CompilerError &error);
-  
+
   protected:
     AstIterator *m_iterator;
     CompilationUnit *m_compilationUnit;

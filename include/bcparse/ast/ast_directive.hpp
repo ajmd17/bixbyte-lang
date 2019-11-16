@@ -7,6 +7,8 @@
 #include <bcparse/ast/ast_statement.hpp>
 #include <bcparse/ast/ast_expression.hpp>
 
+#include <bcparse/token.hpp>
+
 template <typename T>
 using Pointer = std::shared_ptr<T>;
 
@@ -19,7 +21,7 @@ namespace bcparse {
     friend class AstDirective;
   protected:
     AstDirectiveImpl(const std::vector<Pointer<AstExpression>> &arguments,
-      const std::string &body,
+      const std::vector<Token> &tokens,
       const SourceLocation &location);
     AstDirectiveImpl(const AstDirectiveImpl &other) = delete;
     virtual ~AstDirectiveImpl() = default;
@@ -31,7 +33,7 @@ namespace bcparse {
     void visitArguments(AstVisitor *visitor, Module *mod);
 
     std::vector<Pointer<AstExpression>> m_arguments;
-    std::string m_body;
+    std::vector<Token> m_tokens;
     SourceLocation m_location;
   };
 
@@ -39,7 +41,7 @@ namespace bcparse {
     friend class AstDirective;
   protected:
     AstMacroDirective(const std::vector<Pointer<AstExpression>> &arguments,
-      const std::string &body,
+      const std::vector<Token> &tokens,
       const SourceLocation &location);
     virtual ~AstMacroDirective() override;
 
@@ -52,7 +54,7 @@ namespace bcparse {
     friend class AstDirective;
   protected:
     AstSetDirective(const std::vector<Pointer<AstExpression>> &arguments,
-      const std::string &body,
+      const std::vector<Token> &tokens,
       const SourceLocation &location);
     virtual ~AstSetDirective() override;
 
@@ -65,7 +67,7 @@ namespace bcparse {
     friend class AstDirective;
   protected:
     AstGetDirective(const std::vector<Pointer<AstExpression>> &arguments,
-      const std::string &body,
+      const std::vector<Token> &tokens,
       const SourceLocation &location);
     virtual ~AstGetDirective() override;
 
@@ -81,7 +83,7 @@ namespace bcparse {
     friend class AstDirective;
   protected:
     AstYieldDirective(const std::vector<Pointer<AstExpression>> &arguments,
-      const std::string &body,
+      const std::vector<Token> &tokens,
       const SourceLocation &location);
     virtual ~AstYieldDirective() override;
 
@@ -97,7 +99,7 @@ namespace bcparse {
     friend class AstDirective;
   protected:
     AstDebugDirective(const std::vector<Pointer<AstExpression>> &arguments,
-      const std::string &body,
+      const std::vector<Token> &tokens,
       const SourceLocation &location);
     virtual ~AstDebugDirective() override;
 
@@ -114,7 +116,7 @@ namespace bcparse {
   protected:
     AstUserDefinedDirective(const std::string &name,
       const std::vector<Pointer<AstExpression>> &arguments,
-      const std::string &body,
+      const std::vector<Token> &tokens,
       const SourceLocation &location);
     virtual ~AstUserDefinedDirective() override;
 
@@ -125,13 +127,17 @@ namespace bcparse {
     std::string m_name;
     AstIterator *m_iterator;
     CompilationUnit *m_compilationUnit;
+
+  private:
+    std::vector<Token> handleInterpolation(const Token &token);
+
   };
 
   class AstDirective : public AstStatement {
   public:
     AstDirective(const std::string &name,
       const std::vector<Pointer<AstExpression>> &arguments,
-      const std::string &body,
+      const std::vector<Token> &tokens,
       const SourceLocation &location);
     virtual ~AstDirective() override;
 
@@ -145,7 +151,8 @@ namespace bcparse {
   private:
     std::string m_name;
     std::vector<Pointer<AstExpression>> m_arguments;
-    std::string m_body;
+    //std::string m_body;
+    std::vector<Token> m_tokens;
 
     AstDirectiveImpl *m_impl;
 
@@ -153,7 +160,7 @@ namespace bcparse {
       return Pointer<AstDirective>(new AstDirective(
         m_name,
         m_arguments,
-        m_body,
+        m_tokens,
         m_location
       ));
     }

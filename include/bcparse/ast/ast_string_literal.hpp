@@ -16,6 +16,7 @@ namespace bcparse {
 
     virtual Pointer<AstStatement> clone() const override;
     virtual std::string toString() const override;
+    virtual Value getRuntimeValue() const override;
 
   protected:
     std::string m_value;

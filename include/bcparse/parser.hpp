@@ -13,7 +13,8 @@ namespace bcparse {
   class AstDirective;
   class AstStringLiteral;
   class AstIntegerLiteral;
-  class AstIdentifier;
+  class AstVariable;
+  class AstSymbol;
   class AstInterpolation;
   class AstLabelDecl;
   class AstDataLocation;
@@ -22,9 +23,10 @@ namespace bcparse {
   public:
     Parser(AstIterator *astIterator,
       TokenStream *tokenStream,
-      CompilationUnit *compilationUnit);
+      CompilationUnit *compilationUnit,
+      bool variableMode = false);
 
-    Parser(const Parser &other);
+    Parser(const Parser &other) = delete;
 
     void parse();
 
@@ -42,15 +44,18 @@ namespace bcparse {
     Pointer<AstExpression> parseTerm();
     Pointer<AstStringLiteral> parseStringLiteral();
     Pointer<AstIntegerLiteral> parseIntegerLiteral();
-    Pointer<AstIdentifier> parseIdentifier();
+    Pointer<AstVariable> parseVariable();
+    Pointer<AstSymbol> parseSymbol();
     Pointer<AstDirective> parseDirective();
     Pointer<AstLabelDecl> parseLabel();
     Pointer<AstExpression> parseInterpolation();
+    Pointer<AstDataLocation> parseDataLocation();
     Pointer<AstDataLocation> parseRegister();
     Pointer<AstDataLocation> parseLocal();
 
     AstIterator *m_astIterator;
     TokenStream *m_tokenStream;
     CompilationUnit *m_compilationUnit;
+    bool m_variableMode;
   };
 }

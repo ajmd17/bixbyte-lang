@@ -18,10 +18,8 @@ namespace bcparse {
   }
 
   void AstStringLiteral::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
-    Value value(std::vector<uint8_t>(m_value.begin(), m_value.end()));
-
     size_t id = visitor->getCompilationUnit()->getDataStorage()->addStaticData(
-      value
+      getRuntimeValue()
     );
 
     m_objLoc = ObjLoc(id, ObjLoc::DataStoreLocation::StaticDataStore);
@@ -36,5 +34,9 @@ namespace bcparse {
 
   std::string AstStringLiteral::toString() const {
     return std::string("\"") + str_util::escape_string(m_value) + "\"";
+  }
+
+  Value AstStringLiteral::getRuntimeValue() const {
+    return Value(std::vector<uint8_t>(m_value.begin(), m_value.end()));
   }
 }

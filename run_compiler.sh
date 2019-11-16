@@ -1,1 +1,1 @@
-./dist/bcparse/bin/bcparse ./examples/if_else
+./dist/bcparse/bin/bcparse ./examples/meta

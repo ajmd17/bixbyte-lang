@@ -44,6 +44,45 @@ namespace bcparse {
     ObjLoc m_right;
   };
 
+  class Op_Push : public Buildable {
+  public:
+    Op_Push(const ObjLoc &arg);
+    Op_Push(const Op_Push &other) = delete;
+    virtual ~Op_Push() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_arg;
+  };
+
+  class Op_PushConst : public Buildable {
+  public:
+    Op_PushConst(const Value &arg);
+    Op_PushConst(const Op_PushConst &other) = delete;
+    virtual ~Op_PushConst() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    Value m_arg;
+  };
+
+  class Op_Pop : public Buildable {
+  public:
+    Op_Pop(size_t amt);
+    Op_Pop(const Op_Pop &other) = delete;
+    virtual ~Op_Pop() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    size_t m_amt;
+  };
+
   class Op_Jmp : public Buildable {
   public:
     enum class Flags {

@@ -180,6 +180,7 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
         break;
       setInt:
         it->flags = ((0 < cacheval.i) - (cacheval.i < 0)) + 1; // 0, 1, or 2. gets sign() of `val` and adds 1.
+        printf("setInt: %d\n", it->flags);
         break;
       }
 

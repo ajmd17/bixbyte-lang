@@ -1,7 +1,7 @@
 #include <bcparse/macro.hpp>
 
 namespace bcparse {
-  Macro::Macro(const std::string &name, const std::string &body)
+  Macro::Macro(const std::string &name, const std::vector<Token> &body)
     : m_name(name),
       m_body(body) {
   }

@@ -1,29 +1,27 @@
 #pragma once
 
-#include <bcparse/ast/ast_expression.hpp>
+#include <bcparse/ast/ast_code_body.hpp>
 
 namespace bcparse {
-  class AstInterpolation : public AstExpression {
+  class AstInterpolation : public AstCodeBody {
   public:
-    AstInterpolation(Pointer<AstExpression> value, const SourceLocation &location);
+    AstInterpolation(const std::vector<Token> &tokens,
+      const SourceLocation &location);
     virtual ~AstInterpolation() = default;
-
-    const Pointer<AstExpression> &getValue() const { return m_value; }
 
     virtual void visit(AstVisitor *visitor, Module *mod) override;
     virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
-    virtual void optimize(AstVisitor *visitor, Module *mod) override;
 
     virtual Pointer<AstStatement> clone() const override;
     virtual AstExpression *getValueOf() override;
     virtual AstExpression *getDeepValueOf() override;
+    virtual Value getRuntimeValue() const override;
+    virtual std::string toString() const override;
 
   private:
-    Pointer<AstExpression> m_value;
-
     inline Pointer<AstInterpolation> CloneImpl() const {
       return Pointer<AstInterpolation>(new AstInterpolation(
-        cloneAstNode(m_value),
+        m_tokens,
         m_location
       ));
     }

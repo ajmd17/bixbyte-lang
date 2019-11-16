@@ -28,6 +28,9 @@ namespace bcparse {
     inline Pointer<AstStatement> next() { return m_list[m_position++]; }
     inline bool hasNext() const { return m_position < m_list.size(); }
 
+    inline Pointer<AstStatement> &last() { return m_list.back(); }
+    inline const Pointer<AstStatement> &last() const { return m_list.back(); }
+
   private:
     size_t m_position;
     std::vector<Pointer<AstStatement>> m_list;

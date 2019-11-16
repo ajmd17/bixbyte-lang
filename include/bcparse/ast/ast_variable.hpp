@@ -2,17 +2,14 @@
 
 #include <bcparse/ast/ast_expression.hpp>
 
-#include <bcparse/emit/obj_loc.hpp>
-
 namespace bcparse {
-  class AstDataLocation;
-
-  class AstLabel : public AstExpression {
+  class AstVariable : public AstExpression {
   public:
-    AstLabel(const std::string &name, const SourceLocation &location);
-    virtual ~AstLabel() = default;
+    AstVariable(const std::string &name, const SourceLocation &location);
+    virtual ~AstVariable() = default;
 
     const std::string &getName() const { return m_name; }
+    const Pointer<AstExpression> &getValue() const { return m_value; }
 
     virtual void visit(AstVisitor *visitor, Module *mod) override;
     virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
@@ -20,17 +17,17 @@ namespace bcparse {
 
     virtual Pointer<AstStatement> clone() const override;
     virtual AstExpression *getValueOf() override;
-    virtual AstExpression *getDeepValueOf() override;
+    virtual Value getRuntimeValue() const override;
     virtual std::string toString() const override;
 
   private:
     std::string m_name;
 
-    // set during build
-    std::shared_ptr<AstDataLocation> m_dataLocation;
+    // set during walk
+    Pointer<AstExpression> m_value;
 
-    inline Pointer<AstLabel> CloneImpl() const {
-      return Pointer<AstLabel>(new AstLabel(
+    inline Pointer<AstVariable> CloneImpl() const {
+      return Pointer<AstVariable>(new AstVariable(
         m_name,
         m_location
       ));

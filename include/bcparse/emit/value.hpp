@@ -8,6 +8,8 @@
 namespace bcparse {
   class Value {
   public:
+    static const Value none();
+
     Value(std::nullptr_t = nullptr) {
       m_valueType = ValueType::ValueTypeNull;
     }

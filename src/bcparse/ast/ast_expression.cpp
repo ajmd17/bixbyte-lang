@@ -13,7 +13,11 @@ namespace bcparse {
     return getValueOf();
   }
 
+  Value AstExpression::getRuntimeValue() const {
+    return Value::none();
+  }
+
   std::string AstExpression::toString() const {
-    return "";
+    return typeid(*this).name();
   }
 }

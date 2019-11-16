@@ -15,6 +15,9 @@ namespace bcparse {
       TokenStream *tokenStream,
       CompilationUnit *compilationUnit);
 
+    inline SourceLocation &getSourceLocation() { return m_sourceLocation; }
+    inline const SourceLocation &getSourceLocation() const { return m_sourceLocation; }
+
     void analyze();
 
   private:

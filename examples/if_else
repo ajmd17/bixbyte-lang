@@ -7,13 +7,13 @@
 }
 
 @macro if {
+  @set _0 1
+  @debug #{_0}
   cmp #{_0} 0
-  je _else
+  je #{_else}
 
   #{body}
-  jmp _end
-
-  #{#{#{_0}}}
+  jmp #{_end}
 
 _else:
   #{else_body}
@@ -25,14 +25,14 @@ _end:
 }
 
 @if 1 {
-  jmp endprogram
+  jmp #{endprogram}
 
   @else {
-    jmp infiniteloop
+    jmp #{infiniteloop}
   }
 }
 
 infiniteloop:
-  jmp infiniteloop
+  jmp #{infiniteloop}
 endprogram:
 

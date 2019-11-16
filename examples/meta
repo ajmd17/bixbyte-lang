@@ -1,7 +1,10 @@
 
 @macro call {
-  // todo: push addr
+  push #{afterCall}
   jmp #{_0}
+  @debug #{_0}
+afterCall:
+  pop // pop address from stack
 }
 
 @macro function {
@@ -9,21 +12,18 @@
 
 funcbody:
   #{body}
-  jmp endprog // todo: RET instruction
+  jmp $l[-1]
 
-end:
-  @set #{_0} #{funcbody}
+end: // how to get this to transpile to @set say_hi ... without reaching into what say_hi is?
+
+  @set #{#{_0}} #{funcbody}
 }
 
-@macro puts {
-
-}
-
-@function say_hi {
+@function funk {
   //@puts "hello there"
 }
 
-//@call say_hi
+@call say_hi
 
 //@say_hi
 endprog:

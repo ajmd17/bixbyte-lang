@@ -17,6 +17,9 @@ namespace bcparse {
     CompilationUnit(const CompilationUnit &other) = delete;
     ~CompilationUnit();
 
+    inline void setVariableMode(bool variableMode) { m_variableMode = variableMode; }
+    inline bool isVariableMode() const { return m_variableMode; }
+
     inline ErrorList &getErrorList() { return m_errorList; }
     inline const ErrorList &getErrorList() const { return m_errorList; }
 
@@ -34,5 +37,6 @@ namespace bcparse {
       BoundVariables m_boundGlobals;
       RegisterUsage m_registerUsage;
       DataStorage *m_dataStorage;
+      bool m_variableMode;
   };
 }

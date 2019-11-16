@@ -22,11 +22,6 @@ namespace bcparse {
       visitor->getCompilationUnit()->getRegisterUsage().current(),
       ObjLoc::DataStoreLocation::RegisterDataStore
     );
-
-    out->append(std::unique_ptr<Op_Load>(new Op_Load(
-      m_objLoc,
-      Value((int64_t)m_value)
-    )));
   }
 
   void AstIntegerLiteral::optimize(AstVisitor *visitor, Module *mod) {
@@ -41,5 +36,9 @@ namespace bcparse {
     ss << m_value;
 
     return ss.str();
+  }
+
+  Value AstIntegerLiteral::getRuntimeValue() const {
+    return Value((int64_t)m_value);
   }
 }

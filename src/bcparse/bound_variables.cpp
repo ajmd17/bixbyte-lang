@@ -47,7 +47,7 @@ namespace bcparse {
     m_map[name] = value;
   }
 
-  void BoundVariables::defineMacro(const std::string &name, const std::string &body) {
+  void BoundVariables::defineMacro(const std::string &name, const std::vector<Token> &body) {
     m_macros[name] = std::unique_ptr<Macro>(new Macro(name, body));
   }
 

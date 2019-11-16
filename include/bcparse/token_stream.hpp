@@ -38,6 +38,7 @@ namespace bcparse {
     inline Token last() const { ASSERT(!m_tokens.empty()); return m_tokens.back(); }
     inline size_t getSize() const { return m_tokens.size(); }
     inline size_t getPosition() const { return m_position; }
+    inline const std::vector<Token> &getTokens() const { return m_tokens; }
     inline const TokenStreamInfo &getInfo() const { return m_info; }
     inline void setPosition(size_t position) { m_position = position; }
     inline bool eof() const { return m_position >= m_tokens.size(); }

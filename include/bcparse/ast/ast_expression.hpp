@@ -2,6 +2,7 @@
 
 #include <bcparse/ast/ast_statement.hpp>
 
+#include <bcparse/emit/value.hpp>
 #include <bcparse/emit/obj_loc.hpp>
 
 namespace bcparse {
@@ -11,6 +12,7 @@ namespace bcparse {
 
     virtual AstExpression *getValueOf();
     virtual AstExpression *getDeepValueOf();
+    virtual Value getRuntimeValue() const;
     virtual std::string toString() const;
 
     inline const ObjLoc &getObjLoc() const { return m_objLoc; }
