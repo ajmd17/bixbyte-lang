@@ -29,11 +29,11 @@ namespace bcparse {
     return m_parent;
   }
 
-  Pointer<AstExpression> BoundVariables::get(const std::string &name) {
+  Pointer<AstExpression> BoundVariables::get(const std::string &name, bool bubbles) {
     auto it = m_map.find(name);
 
     if (it == m_map.end()) {
-      if (m_parent) {
+      if (bubbles && m_parent != nullptr) {
         return m_parent->get(name);
       }
 

@@ -610,7 +610,7 @@ void interpreter_run(interpreter_t *it) {
       }
 
       case OP_HALT:
-        puts("\n\nProgram Terminated\n\n");
+        exit(0);
         break;
     }
   }

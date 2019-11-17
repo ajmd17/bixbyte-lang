@@ -1,0 +1,16 @@
+@macro if {
+  @var else_body
+
+  cmp #{_0} 0
+  je #{__else}
+
+  #{body}
+
+__else:
+  #{else_body}
+
+__end:
+  @macro else {
+    @set else_body #{body}
+  }
+}

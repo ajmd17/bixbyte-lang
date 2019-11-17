@@ -2,15 +2,18 @@
 #include <bcparse/emit/formatter.hpp>
 
 namespace bcparse {
-  Op_Div::Op_Div(const ObjLoc &left, const ObjLoc &right)
+  Op_Div::Op_Div(const ObjLoc &left,
+    const ObjLoc &right,
+    Op_Cmp::Flags flags)
     : m_left(left),
-      m_right(right) {
+      m_right(right),
+      m_flags(flags) {
   }
 
   void Op_Div::accept(BytecodeStream *bs) {
     Buildable::accept(bs);
 
-    bs->acceptInstruction(0xB);
+    bs->acceptInstruction(0xB, (uint8_t)m_flags);
     bs->acceptObjLoc(m_left);
     bs->acceptObjLoc(m_right);
   }

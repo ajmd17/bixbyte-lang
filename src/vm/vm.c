@@ -350,49 +350,7 @@ void openFile(interpreter_data_t *iData, int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
   interpreter_data_t iData;
 
-  if (argc == 1) {
-    iData.data = malloc(512);
-    iData.len = 0;
-
-    uint8_t u8;
-    uint16_t u16;
-    uint32_t u32;
-    uint64_t u64;
-
-    #define STR(s) s
-
-    #define PUT_BYTES(sz, cmd) \
-      do { \
-        u##sz = STR(cmd); \
-        memcpy((iData.data + iData.len), &u##sz, sizeof(u##sz)); \
-        iData.len += sizeof(u##sz); \
-      } while (0)
-
-    PUT_BYTES(8, makeInstruction(OP_LOAD, CONST_FLAGS_I64));
-    PUT_BYTES(32, obj_loc_make(1, AT_ABS | AT_DATA));
-    PUT_BYTES(64, 255);
-
-    PUT_BYTES(8, makeInstruction(OP_MOV, 0));
-    PUT_BYTES(32, obj_loc_make(0, AT_ABS | AT_REG));
-    PUT_BYTES(32, obj_loc_make(1, AT_ABS | AT_DATA));
-
-
-
-    #undef PUT_BYTES
-    #undef STR
-
-    int i;
-    for (i = 0; i < iData.len; i++) {
-      printf(BYTE_TO_BINARY_PATTERN " ", BYTE_TO_BINARY(iData.data[i]));
-    }
-
-    puts("");
-
-    // free(iData.data);
-
-    // return 0;
-
-  } else if (argc == 2 || argc == 3) {
+  if (argc == 2 || argc == 3) {
     openFile(&iData, argc, argv);
   } else {
     showArguments(argc, argv);

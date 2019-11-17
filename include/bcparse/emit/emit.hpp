@@ -107,6 +107,13 @@ namespace bcparse {
 
   class Op_Cmp : public Buildable {
   public:
+    enum class Flags {
+      None = 0,
+      FloatLeft = 1,
+      FloatRight = 2,
+      Float = 3
+    };
+
     Op_Cmp(const ObjLoc &left, const ObjLoc &right);
     Op_Cmp(const Op_Jmp &other) = delete;
     virtual ~Op_Cmp() = default;
@@ -121,7 +128,9 @@ namespace bcparse {
 
   class Op_Add : public Buildable {
   public:
-    Op_Add(const ObjLoc &left, const ObjLoc &right);
+    Op_Add(const ObjLoc &left,
+      const ObjLoc &right,
+      Op_Cmp::Flags flags);
     Op_Add(const Op_Add &other) = delete;
     virtual ~Op_Add() = default;
 
@@ -131,11 +140,14 @@ namespace bcparse {
   private:
     ObjLoc m_left;
     ObjLoc m_right;
+    Op_Cmp::Flags m_flags;
   };
 
   class Op_Sub : public Buildable {
   public:
-    Op_Sub(const ObjLoc &left, const ObjLoc &right);
+    Op_Sub(const ObjLoc &left,
+      const ObjLoc &right,
+      Op_Cmp::Flags flags);
     Op_Sub(const Op_Sub &other) = delete;
     virtual ~Op_Sub() = default;
 
@@ -145,11 +157,14 @@ namespace bcparse {
   private:
     ObjLoc m_left;
     ObjLoc m_right;
+    Op_Cmp::Flags m_flags;
   };
 
   class Op_Mul : public Buildable {
   public:
-    Op_Mul(const ObjLoc &left, const ObjLoc &right);
+    Op_Mul(const ObjLoc &left,
+      const ObjLoc &right,
+      Op_Cmp::Flags flags);
     Op_Mul(const Op_Mul &other) = delete;
     virtual ~Op_Mul() = default;
 
@@ -159,11 +174,14 @@ namespace bcparse {
   private:
     ObjLoc m_left;
     ObjLoc m_right;
+    Op_Cmp::Flags m_flags;
   };
 
   class Op_Div : public Buildable {
   public:
-    Op_Div(const ObjLoc &left, const ObjLoc &right);
+    Op_Div(const ObjLoc &left,
+      const ObjLoc &right,
+      Op_Cmp::Flags flags);
     Op_Div(const Op_Div &other) = delete;
     virtual ~Op_Div() = default;
 
@@ -173,6 +191,7 @@ namespace bcparse {
   private:
     ObjLoc m_left;
     ObjLoc m_right;
+    Op_Cmp::Flags m_flags;
   };
 
   class Op_Mod : public Buildable {

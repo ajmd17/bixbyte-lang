@@ -22,7 +22,7 @@ namespace bcparse {
     void setParent(BoundVariables *parent);
     BoundVariables *getParent();
 
-    Pointer<AstExpression> get(const std::string &name);
+    Pointer<AstExpression> get(const std::string &name, bool bubbles = true);
     void set(const std::string &name, const Pointer<AstExpression> &value);
 
     void defineMacro(const std::string &name, const std::vector<Token> &body);

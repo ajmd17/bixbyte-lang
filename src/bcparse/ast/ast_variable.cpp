@@ -1,4 +1,5 @@
 #include <bcparse/ast/ast_variable.hpp>
+#include <bcparse/ast/ast_unset.hpp>
 
 #include <bcparse/ast_visitor.hpp>
 #include <bcparse/compilation_unit.hpp>
@@ -24,7 +25,19 @@ namespace bcparse {
 
     if (auto ptr = visitor->getCompilationUnit()->getBoundGlobals().get(m_name)) {
       m_value = ptr;
-      m_value->visit(visitor, mod);
+
+      // put it in this class as well so that error messages
+      // display the correct usage location
+      if (dynamic_cast<AstUnset*>(m_value.get())) {
+        visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
+          LEVEL_ERROR,
+          Msg_custom_error,
+          m_location,
+          "unset var used"
+        ));
+      } else {
+        m_value->visit(visitor, mod);
+      }
 
       return;
     }

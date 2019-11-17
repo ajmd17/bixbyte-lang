@@ -1,0 +1,32 @@
+@macro call {
+  push #{__afterCall}
+  jmp #{#{_0}}
+
+__afterCall:
+  pop
+}
+
+@macro function {
+  @var fn_claim_size
+
+  @macro locals {
+    @set fn_claim_size #{_0}
+    add $sp #{fn_claim_size}
+  }
+
+  @macro return {
+    mov $r[0] #{_0}
+    sub $sp #{fn_claim_size}
+    jmp $l[-1]
+  }
+
+  jmp #{__funcend}
+
+__funcbody:
+  #{body}
+  sub $sp #{fn_claim_size}
+  jmp $l[-1]
+
+__funcend:
+  @set #{_0} #{__funcbody}
+}

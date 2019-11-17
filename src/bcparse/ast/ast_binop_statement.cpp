@@ -11,9 +11,21 @@
 namespace bcparse {
   const std::vector<std::string> AstBinOpStatement::binaryOperations = {
     "add",
+    "addf",
+    "addfl",
+    "addfr",
     "sub",
+    "subf",
+    "subfl",
+    "subfr",
     "mul",
+    "mulf",
+    "mulfl",
+    "mulfr",
     "div",
+    "divf",
+    "divfl",
+    "divfr",
     "mod",
     "xor",
     "and",
@@ -59,59 +71,74 @@ namespace bcparse {
     ASSERT(m_right != nullptr);
 
     m_left->build(visitor, mod, out);
-
     visitor->getCompilationUnit()->getRegisterUsage().inc();
 
     m_right->build(visitor, mod, out);
-
     visitor->getCompilationUnit()->getRegisterUsage().dec();
 
-    if (m_opName == "add") {
+    const std::string substr = m_opName.substr(0, 3);
+    const std::string flagsStr = m_opName.substr(3);
+
+    Op_Cmp::Flags flags = Op_Cmp::Flags::None;
+
+    if (flagsStr == "f") {
+      flags = Op_Cmp::Flags::Float;
+    } else if (flagsStr == "fl") {
+      flags = Op_Cmp::Flags::FloatLeft;
+    } else if (flagsStr == "fr") {
+      flags = Op_Cmp::Flags::FloatRight;
+    }
+
+    if (substr == "add") {
       out->append(std::unique_ptr<Op_Add>(new Op_Add(
         m_left->getObjLoc(),
-        m_right->getObjLoc()
+        m_right->getObjLoc(),
+        flags
       )));
-    } else if (m_opName == "sub") {
+    } else if (substr == "sub") {
       out->append(std::unique_ptr<Op_Sub>(new Op_Sub(
         m_left->getObjLoc(),
-        m_right->getObjLoc()
+        m_right->getObjLoc(),
+        flags
       )));
-    } else if (m_opName == "mul") {
+    } else if (substr == "mul") {
       out->append(std::unique_ptr<Op_Mul>(new Op_Mul(
         m_left->getObjLoc(),
-        m_right->getObjLoc()
+        m_right->getObjLoc(),
+        flags
       )));
-    } else if (m_opName == "div") {
+    } else if (substr == "div") {
       out->append(std::unique_ptr<Op_Div>(new Op_Div(
         m_left->getObjLoc(),
-        m_right->getObjLoc()
+        m_right->getObjLoc(),
+        flags
       )));
-    } else if (m_opName == "mod") {
+    } else if (substr == "mod") {
       out->append(std::unique_ptr<Op_Mod>(new Op_Mod(
         m_left->getObjLoc(),
         m_right->getObjLoc()
       )));
-    } else if (m_opName == "xor") {
+    } else if (substr == "xor") {
       out->append(std::unique_ptr<Op_Xor>(new Op_Xor(
         m_left->getObjLoc(),
         m_right->getObjLoc()
       )));
-    } else if (m_opName == "and") {
+    } else if (substr == "and") {
       out->append(std::unique_ptr<Op_And>(new Op_And(
         m_left->getObjLoc(),
         m_right->getObjLoc()
       )));
-    } else if (m_opName == "or") {
+    } else if (substr == "or") {
       out->append(std::unique_ptr<Op_Or>(new Op_Or(
         m_left->getObjLoc(),
         m_right->getObjLoc()
       )));
-    } else if (m_opName == "shl") {
+    } else if (substr == "shl") {
       out->append(std::unique_ptr<Op_Shl>(new Op_Shl(
         m_left->getObjLoc(),
         m_right->getObjLoc()
       )));
-    } else if (m_opName == "shr") {
+    } else if (substr == "shr") {
       out->append(std::unique_ptr<Op_Shr>(new Op_Shr(
         m_left->getObjLoc(),
         m_right->getObjLoc()

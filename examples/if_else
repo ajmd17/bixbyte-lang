@@ -1,16 +1,4 @@
-@macro if {
-  cmp #{_0} 0
-  je #{_else}
-
-  #{body}
-
-_else:
-  #{else_body}
-_end:
-  @macro else {
-    @set else_body #{body}
-  }
-}
+@include "../lib/if.bb8"
 
 @if 0 {
   jmp #{endprogram}
