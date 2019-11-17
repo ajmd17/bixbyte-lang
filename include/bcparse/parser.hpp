@@ -50,8 +50,6 @@ namespace bcparse {
     Pointer<AstLabelDecl> parseLabel();
     Pointer<AstExpression> parseInterpolation();
     Pointer<AstDataLocation> parseDataLocation();
-    Pointer<AstDataLocation> parseRegister();
-    Pointer<AstDataLocation> parseLocal();
 
     AstIterator *m_astIterator;
     TokenStream *m_tokenStream;

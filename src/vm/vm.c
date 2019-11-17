@@ -219,7 +219,7 @@ int rcmap_remove(rcmap_t *map, rcmap_key_t key) {
 // ===== Native function arguments =====
 
 value_t *args_getArg(args_t *args, size_t index) {
-  return &args->_stack->data[args->_stack->len - 1 - index];
+  return &args->_stack->data[*args->_stack->lenVal - 1 - index];
 }
 
 
@@ -273,11 +273,11 @@ typedef struct {
 void *interpreterThread(void *arg) {
   interpreter_data_t *iData = (interpreter_data_t*)arg;
 
-  interpreter_t *it = interpreter_create(iData->data, iData->len);
+  interpreter_t *it = interpreter_create(iData->rt, iData->data, iData->len);
 
   // value_setFunction(iData->rt, datatable_getValue(iData->rt->dt, 0, AT_DATA | AT_ABS), _System_C_exit);
 
-  interpreter_run(it, iData->rt);
+  interpreter_run(it);
   interpreter_destroy(it);
 
   return NULL;
@@ -410,8 +410,8 @@ int main(int argc, char *argv[]) {
   }
 
   if (genc) {
-    interpreter_t *it = interpreter_create(iData.data, iData.len);
-    jit_run(it, iData.rt);
+    interpreter_t *it = interpreter_create(iData.rt, iData.data, iData.len);
+    jit_run(it);
     interpreter_destroy(it);
   } else {
     // execution thread

@@ -18,8 +18,11 @@
 #include <bcparse/ast/ast_interpolation.hpp>
 #include <bcparse/ast/ast_jmp_statement.hpp>
 #include <bcparse/ast/ast_cmp_statement.hpp>
+#include <bcparse/ast/ast_mov_statement.hpp>
 #include <bcparse/ast/ast_push_statement.hpp>
 #include <bcparse/ast/ast_pop_statement.hpp>
+#include <bcparse/ast/ast_binop_statement.hpp>
+#include <bcparse/ast/ast_print_statement.hpp>
 
 #include <common/my_assert.hpp>
 
@@ -237,10 +240,8 @@ namespace bcparse {
       expr = parseStringLiteral();
     } else if (match(Token::TK_INTERPOLATION)) {
       expr = parseInterpolation();
-    } else if (match(Token::TK_REG)) {
-      expr = parseRegister();
-    } else if (match(Token::TK_LOCAL)) {
-      expr = parseLocal();
+    } else if (match(Token::TK_DATA_LOC)) {
+      expr = parseDataLocation();
     } else {
       if (token.getTokenClass() == Token::TK_NEWLINE) {
         m_compilationUnit->getErrorList().addError(CompilerError(
@@ -320,6 +321,7 @@ namespace bcparse {
       std::vector<Pointer<AstExpression>> arguments;
       std::vector<Token> tokens;
 
+      // TODO: parseArguments
       while (m_tokenStream->hasNext() &&
         !match(Token::TK_NEWLINE) &&
         !match(Token::TK_OPEN_BRACE)) {
@@ -365,7 +367,12 @@ namespace bcparse {
   Pointer<AstLabelDecl> Parser::parseLabel() {
     if (Token token = expect(Token::TK_LABEL, true)) {
       // add forward declaration for labels
-      Pointer<AstLabel> astLabel(new AstLabel(token.getValue(), token.getLocation()));
+      Pointer<AstLabel> astLabel(new AstLabel(
+        token.getValue(),
+        nullptr,
+        token.getLocation()
+      ));
+
       m_compilationUnit->getBoundGlobals().set(token.getValue(), astLabel);
 
       return Pointer<AstLabelDecl>(new AstLabelDecl(
@@ -422,76 +429,26 @@ namespace bcparse {
           right,
           token.getLocation()
         ));
+      } else if (token.getValue() == "mov") {
+        auto left = parseExpression();
+
+        if (!left) {
+          return nullptr;
+        }
+
+        auto right = parseExpression();
+
+        if (!right) {
+          return nullptr;
+        }
+
+        return Pointer<AstMovStatement>(new AstMovStatement(
+          left,
+          right,
+          token.getLocation()
+        ));
       } else if (token.getValue() == "push") {
         auto arg = parseExpression();
-
-        if (!arg) {
-          return nullptr;
-        }
-
-        return Pointer<AstPushStatement>(new AstPushStatement(
-          arg,
-          token.getLocation()
-        ));
-      } else if (token.getValue() == "pushnil") {
-        // Clean up just check suffix to set an AstExpression to the correct val
-
-        // TODO:
-        // return Pointer<AstPushStatement>(new AstPushStatement(
-        //   Pointer<AstNil>(new AstNil(
-        //     token.getLocation()
-        //   )),
-        //   token.getLocation()
-        // ));
-      } else if (token.getValue() == "pushi4") {
-        auto arg = parseIntegerLiteral();
-
-        if (!arg) {
-          return nullptr;
-        }
-
-        return Pointer<AstPushStatement>(new AstPushStatement(
-          arg,
-          token.getLocation()
-        ));
-      } else if (token.getValue() == "pushu4") {
-        // TODO: way to parse unsigned?
-        auto arg = parseIntegerLiteral();
-
-        if (!arg) {
-          return nullptr;
-        }
-
-        return Pointer<AstPushStatement>(new AstPushStatement(
-          arg,
-          token.getLocation()
-        ));
-      } else if (token.getValue() == "pushd") {
-        // TODO:
-        // auto arg = parseFloatLiteral();
-
-        // if (!arg) {
-        //   return nullptr;
-        // }
-
-        // return Pointer<AstPushStatement>(new AstPushStatement(
-        //   arg,
-        //   token.getLocation()
-        // ));
-      } else if (token.getValue() == "pushb") {
-        // TODO:
-        // auto arg = parseBooleanLiteral();
-
-        // if (!arg) {
-        //   return nullptr;
-        // }
-
-        // return Pointer<AstPushStatement>(new AstPushStatement(
-        //   arg,
-        //   token.getLocation()
-        // ));
-      } else if (token.getValue() == "pushdata") {
-        auto arg = parseStringLiteral();
 
         if (!arg) {
           return nullptr;
@@ -517,6 +474,42 @@ namespace bcparse {
 
         return Pointer<AstPopStatement>(new AstPopStatement(
           num,
+          token.getLocation()
+        ));
+      } else if (std::find(AstBinOpStatement::binaryOperations.begin(), AstBinOpStatement::binaryOperations.end(), token.getValue()) != AstBinOpStatement::binaryOperations.end()) {
+        auto left = parseExpression();
+
+        if (!left) {
+          return nullptr;
+        }
+
+        auto right = parseExpression();
+
+        if (!right) {
+          return nullptr;
+        }
+
+        return Pointer<AstBinOpStatement>(new AstBinOpStatement(
+          token.getValue(),
+          left,
+          right,
+          token.getLocation()
+        ));
+      } else if (token.getValue() == "print") {
+        std::vector<Pointer<AstExpression>> arguments;
+
+        while (m_tokenStream->hasNext() &&
+          !match(Token::TK_NEWLINE) &&
+          !match(Token::TK_OPEN_BRACE)) {
+          if (auto expr = parseTerm()) {
+            arguments.emplace_back(expr);
+          } else {
+            break;
+          }
+        }
+
+        return Pointer<AstPrintStatement>(new AstPrintStatement(
+          arguments,
           token.getLocation()
         ));
       } else if (m_variableMode) {
@@ -568,12 +561,49 @@ namespace bcparse {
   }
 
   Pointer<AstDataLocation> Parser::parseDataLocation() {
-    if (match(Token::TK_REG)) {
-      return parseRegister();
-    }
 
-    if (match(Token::TK_LOCAL)) {
-      return parseLocal();
+    if (Token token = expect(Token::TK_DATA_LOC, true)) {
+      std::stringstream ident;
+      Pointer<AstIntegerLiteral> offset;
+
+      char ch;
+      const std::string tokenValue = token.getValue();
+
+      for (size_t i = 0; i < tokenValue.length(); i++) {
+        ch = tokenValue[i];
+
+        if (ch == '[') {
+          std::stringstream numVal;
+
+          for (size_t j = i + 1; j < tokenValue.length(); j++) {
+            ch = tokenValue[j];
+
+            if (ch == ']') {
+              break;
+            }
+
+            numVal << ch;
+          }
+
+          int64_t num;
+          numVal >> num;
+
+          offset.reset(new AstIntegerLiteral(
+            num,
+            token.getLocation()
+          ));
+
+          break;
+        }
+
+        ident << ch;
+      }
+
+      return Pointer<AstDataLocation>(new AstDataLocation(
+        ident.str(),
+        offset,
+        token.getLocation()
+      ));
     }
 
     m_compilationUnit->getErrorList().addError(CompilerError(
@@ -584,37 +614,17 @@ namespace bcparse {
     ));
 
     return nullptr;
-  }
 
-  Pointer<AstDataLocation> Parser::parseRegister() {
-    if (Token token = expect(Token::TK_REG, true)) {
-      std::istringstream ss(token.getValue());
-      int value;
-      ss >> value;
+    // if (match(Token::TK_REG)) {
+    //   return parseRegister();
+    // }
 
-      return Pointer<AstDataLocation>(new AstDataLocation(
-        value,
-        ObjLoc::DataStoreLocation::RegisterDataStore,
-        token.getLocation()
-      ));
-    }
+    // if (match(Token::TK_LOCAL)) {
+    //   return parseLocal();
+    // }
 
-    return nullptr;
-  }
 
-  Pointer<AstDataLocation> Parser::parseLocal() {
-    if (Token token = expect(Token::TK_LOCAL, true)) {
-      std::istringstream ss(token.getValue());
-      int value;
-      ss >> value;
 
-      return Pointer<AstDataLocation>(new AstDataLocation(
-        value,
-        ObjLoc::DataStoreLocation::LocalDataStore,
-        token.getLocation()
-      ));
-    }
-
-    return nullptr;
+    // return nullptr;
   }
 }

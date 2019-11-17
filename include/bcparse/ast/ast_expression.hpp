@@ -5,9 +5,13 @@
 #include <bcparse/emit/value.hpp>
 #include <bcparse/emit/obj_loc.hpp>
 
+#include <string>
+
 namespace bcparse {
   class AstExpression : public AstStatement {
   public:
+    static std::string nodeToString(AstVisitor *visitor, AstExpression *node);
+
     AstExpression(const SourceLocation &location);
 
     virtual AstExpression *getValueOf();

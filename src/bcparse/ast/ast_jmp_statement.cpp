@@ -23,28 +23,7 @@ namespace bcparse {
 
     m_arg->visit(visitor, mod);
 
-    // if (auto asIdent = std::dynamic_pointer_cast<AstVariable>(m_arg)) {
-    //   if (asIdent->getValue() != nullptr) {
-    //     if (auto asLabel = std::dynamic_pointer_cast<AstLabel>(asIdent->getValue())) {
-    //       m_pointee = asLabel;
-    //     } else {
-    //       visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
-    //         LEVEL_ERROR,
-    //         Msg_custom_error,
-    //         m_arg->getLocation(),
-    //         "Expression is not a label"
-    //       ));
-    //     }
-    //   }
-    // } else {
-    //   // TODO: dynamic jumps
-    //   visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
-    //     LEVEL_ERROR,
-    //     Msg_custom_error,
-    //     m_arg->getLocation(),
-    //     "<<jmp>> argument must be a label"
-    //   ));
-    // }
+    // TODO: if arg is an AstSymbol, we look for a Label with that name
   }
 
   void AstJmpStatement::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {

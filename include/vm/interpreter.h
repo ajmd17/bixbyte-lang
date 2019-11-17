@@ -13,6 +13,7 @@ struct interpreter {
   size_t len;
   uint8_t flags;
   ubyte_t *bc;
+  runtime_t *rt;
 };
 
 typedef enum {
@@ -84,7 +85,7 @@ enum INSTRUCTIONS { // max: 32 values
   OP_NOT = 19, // ~
 
   OP_CALL = 20,
-  OP_PLACEHOLDER_21 = 21,
+  OP_PRINT = 21,
   OP_PLACEHOLDER_22 = 22,
   OP_PLACEHOLDER_23 = 23,
   OP_PLACEHOLDER_24 = 24,
@@ -98,11 +99,11 @@ enum INSTRUCTIONS { // max: 32 values
   OP_HALT = 31, // exit program
 };
 
-interpreter_t *interpreter_create(ubyte_t *data, size_t len);
+interpreter_t *interpreter_create(runtime_t *rt, ubyte_t *data, size_t len);
 void interpreter_destroy(interpreter_t *it);
 void interpreter_peek(interpreter_t *it, size_t size, void *out);
 void interpreter_seek(interpreter_t *it, size_t loc);
 void interpreter_read(interpreter_t *it, size_t size, void *out);
 bool interpreter_atEnd(interpreter_t *it);
 
-void interpreter_run(interpreter_t *it, runtime_t *rt);
+void interpreter_run(interpreter_t *it);

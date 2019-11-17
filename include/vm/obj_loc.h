@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 typedef enum {
+  AT_VM = 0x0,
   AT_DATA = 0x1,
   AT_LOCAL = 0x2,
   AT_REG = 0x3,

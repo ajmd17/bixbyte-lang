@@ -1,5 +1,6 @@
 #include <bcparse/ast/ast_interpolation.hpp>
 #include <bcparse/ast/ast_variable.hpp>
+#include <bcparse/ast/ast_symbol.hpp>
 
 #include <bcparse/ast_visitor.hpp>
 #include <bcparse/ast_iterator.hpp>
@@ -16,14 +17,38 @@ namespace bcparse {
   AstInterpolation::AstInterpolation(const std::vector<Token> &tokens,
     const SourceLocation &location)
     : AstCodeBody(tokens, location, true) {
+    m_container.owned = false;
+    m_container.value = nullptr;
+  }
+
+  AstInterpolation::~AstInterpolation() {
+    if (m_container.owned && m_container.value != nullptr) {
+      delete m_container.value;
+
+      m_container.value = nullptr;
+      m_container.owned = false;
+    }
   }
 
   void AstInterpolation::visit(AstVisitor *visitor, Module *mod) {
     AstCodeBody::visit(visitor, mod);
 
-    AstExpression *value = getValueOf();
+    if (m_iterator->size() != 0) {
+      if (auto value = std::dynamic_pointer_cast<AstExpression>(m_iterator->last())) {
+        setInterpValue(value.get(), false);
+        setInterpValue(getInterpValue(), false);
 
-    if (value == nullptr) {
+        if (auto asVar = dynamic_cast<AstVariable*>(m_container.value)) {
+          setInterpValue(asVar->getValueOf(), false);
+        } else if (auto asSym = dynamic_cast<AstSymbol*>(m_container.value)) {
+          setInterpValue(new AstVariable(asSym->getName(), m_location), true);
+
+          m_container.value->visit(visitor, mod);
+        }
+      }
+    }
+
+    if (m_container.value == nullptr) {
       visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
         LEVEL_ERROR,
         Msg_custom_error,
@@ -34,11 +59,10 @@ namespace bcparse {
   }
 
   void AstInterpolation::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
-    AstCodeBody::build(visitor, mod, out);
+    ASSERT(m_container.value != nullptr);
 
-    if (AstExpression *value = getValueOf()) {
-      m_objLoc = value->getObjLoc();
-    }
+    m_container.value->build(visitor, mod, out);
+    m_objLoc = m_container.value->getObjLoc();
   }
 
   Pointer<AstStatement> AstInterpolation::clone() const {
@@ -46,56 +70,51 @@ namespace bcparse {
   }
 
   AstExpression *AstInterpolation::getValueOf() {
-    ASSERT(m_iterator != nullptr);
-
-    if (m_iterator->size() == 0) {
+    if (m_container.value == nullptr) {
       return nullptr;
     }
 
-    if (auto expr = std::dynamic_pointer_cast<AstExpression>(m_iterator->last())) {
-      return expr.get();
-    }
-
-    return nullptr;
+    return m_container.value->getValueOf();
   }
 
   AstExpression *AstInterpolation::getDeepValueOf() {
-    ASSERT(m_iterator != nullptr);
-
-    if (m_iterator->size() == 0) {
+    if (m_container.value == nullptr) {
       return nullptr;
     }
 
-    if (auto expr = std::dynamic_pointer_cast<AstExpression>(m_iterator->last())) {
-      return expr->getDeepValueOf();
-    }
-
-    return nullptr;
+    return m_container.value->getDeepValueOf();
   }
 
   Value AstInterpolation::getRuntimeValue() const {
-    ASSERT(m_iterator != nullptr);
-
-    if (m_iterator->size() == 0) {
-      return Value::none();
+    if (m_container.value == nullptr) {
+      return nullptr;
     }
 
-    if (auto expr = std::dynamic_pointer_cast<AstExpression>(m_iterator->last())) {
-      return expr->getRuntimeValue();
-    }
-
-    return nullptr;
+    return m_container.value->getRuntimeValue();
   }
 
   std::string AstInterpolation::toString() const {
-    ASSERT(m_iterator != nullptr);
-
-    if (m_iterator->size() > 0) {
-      if (const auto expr = (const_cast<AstInterpolation*>(this))->getValueOf()) {
-        return expr->toString();
-      }
+    if (m_container.value != nullptr) {
+      return m_container.value->toString();
     }
 
     return AstExpression::toString();
+  }
+
+  AstExpression *AstInterpolation::getInterpValue() {
+    if (auto asInterp = dynamic_cast<AstInterpolation*>(m_container.value)) {
+      return asInterp->getInterpValue();
+    }
+
+    return m_container.value;
+  }
+
+  void AstInterpolation::setInterpValue(AstExpression *value, bool owned) {
+    if (m_container.owned && m_container.value != nullptr) {
+      delete m_container.value;
+    }
+
+    m_container.value = value;
+    m_container.owned = owned;
   }
 }

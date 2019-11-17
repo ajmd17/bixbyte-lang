@@ -18,15 +18,12 @@ namespace bcparse {
   }
 
   void AstVariable::visit(AstVisitor *visitor, Module *mod) {
-    if (!visitor->getCompilationUnit()->isVariableMode()) {
-      return;
-    }
+    // if (!visitor->getCompilationUnit()->isVariableMode()) {
+    //   return;
+    // }
 
     if (auto ptr = visitor->getCompilationUnit()->getBoundGlobals().get(m_name)) {
       m_value = ptr;
-
-      bool isVariableMode = visitor->getCompilationUnit()->isVariableMode();
-
       m_value->visit(visitor, mod);
 
       return;
@@ -41,13 +38,13 @@ namespace bcparse {
   }
 
   void AstVariable::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
-    if (visitor->getCompilationUnit()->isVariableMode()) {
+    // if (visitor->getCompilationUnit()->isVariableMode()) {
       ASSERT(m_value != nullptr);
 
       m_value->build(visitor, mod, out);
 
       m_objLoc = m_value->getObjLoc();
-    }
+    // }
   }
 
   void AstVariable::optimize(AstVisitor *visitor, Module *mod) {
@@ -82,7 +79,7 @@ namespace bcparse {
     ss << m_name;
     ss << ": ";
 
-    if (m_value == nullptr) {
+    if (m_value != nullptr) {
       ss << m_value->toString();
     } else {
       ss << "unset";

@@ -63,6 +63,15 @@ namespace bcparse {
     inline ValueType getValueType() const { return m_valueType; }
     inline const std::vector<uint8_t> &getRawBytes() const { return m_rawBytes; }
 
+    inline bool operator==(const Value &other) const {
+      return m_valueType == other.m_valueType &&
+        m_rawBytes == other.m_rawBytes;
+    }
+
+    inline bool operator!=(const Value &other) const {
+      return !operator==(other);
+    }
+
     inline std::string toString() const {
       std::stringstream ss;
 

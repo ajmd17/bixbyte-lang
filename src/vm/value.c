@@ -6,9 +6,9 @@ void value_destroy(runtime_t *rt, value_t *value) {
   /*if (value->metadata & (TYPE_POINTER | (FLAG_OBJECT << 8))) {
     object_destroy((object_t*)value->data.ptr);
   } else*/
-  if (value->metadata & (TYPE_POINTER | (FLAG_REFCOUNTED << 8))) {
+  if ((value->metadata & (TYPE_POINTER | (FLAG_REFCOUNTED << 8))) == (TYPE_POINTER | (FLAG_REFCOUNTED << 8))) {
     runtime_release(rt, value->data.rc);
-  } else if (value->metadata & (TYPE_POINTER | (FLAG_MALLOC << 8))) {
+  } else if ((value->metadata & (TYPE_POINTER | (FLAG_MALLOC << 8))) == (TYPE_POINTER | (FLAG_MALLOC << 8))) {
     free(value->data.raw);
   }
 }
@@ -16,7 +16,7 @@ void value_destroy(runtime_t *rt, value_t *value) {
 void value_copyValue(runtime_t *rt, value_t *v, value_t *other) {
   value_destroy(rt, v);
 
-  if (other->metadata & (TYPE_POINTER | (FLAG_REFCOUNTED << 8))) {
+  if ((other->metadata & (TYPE_POINTER | (FLAG_REFCOUNTED << 8))) == (TYPE_POINTER | (FLAG_REFCOUNTED << 8))) {
     v->data.rc = runtime_claim(rt, (rcmap_key_t)other->data.rc);
   } else {
     v->data = other->data;

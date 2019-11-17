@@ -106,9 +106,6 @@ namespace bcparse {
     virtual void visit(AstVisitor *visitor, Module *mod) override;
     virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
     virtual void optimize(AstVisitor *visitor, Module *mod) override;
-
-  private:
-    std::string nodeToString(AstVisitor *visitor, AstExpression *node);
   };
 
   class AstUserDefinedDirective : public AstDirectiveImpl {

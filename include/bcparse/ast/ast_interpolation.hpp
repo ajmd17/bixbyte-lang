@@ -7,7 +7,7 @@ namespace bcparse {
   public:
     AstInterpolation(const std::vector<Token> &tokens,
       const SourceLocation &location);
-    virtual ~AstInterpolation() = default;
+    virtual ~AstInterpolation();
 
     virtual void visit(AstVisitor *visitor, Module *mod) override;
     virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
@@ -19,6 +19,16 @@ namespace bcparse {
     virtual std::string toString() const override;
 
   private:
+    // set during walk - convert AstSymbol to AstVariable
+    //Pointer<AstExpression> m_value;
+    struct InterpolationValue {
+      AstExpression *value;
+      bool owned;
+    } m_container;
+
+    AstExpression *getInterpValue();
+    void setInterpValue(AstExpression *value, bool owned);
+
     inline Pointer<AstInterpolation> CloneImpl() const {
       return Pointer<AstInterpolation>(new AstInterpolation(
         m_tokens,

@@ -22,6 +22,11 @@ namespace bcparse {
       visitor->getCompilationUnit()->getRegisterUsage().current(),
       ObjLoc::DataStoreLocation::RegisterDataStore
     );
+
+    out->append(std::unique_ptr<Op_Load>(new Op_Load(
+      m_objLoc,
+      getRuntimeValue()
+    )));
   }
 
   void AstIntegerLiteral::optimize(AstVisitor *visitor, Module *mod) {

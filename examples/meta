@@ -1,29 +1,47 @@
 
 @macro call {
   push #{afterCall}
-  jmp #{_0}
-  @debug #{_0}
+  jmp #{#{_0}}
+
 afterCall:
-  pop // pop address from stack
+  pop
 }
 
 @macro function {
-  jmp end
+  @var fn_claim_size
+
+  @macro locals {
+    @set fn_claim_size #{_0}
+    add $sp #{fn_claim_size}
+  }
+
+  @macro return {
+    mov $r[0] #{_0}
+    sub $sp #{fn_claim_size}
+    jmp $l[-1]
+  }
+
+  @set #{_0} #{funcbody}
+
+  jmp #{end}
+  sub $sp #{fn_claim_size}
 
 funcbody:
   #{body}
   jmp $l[-1]
 
-end: // how to get this to transpile to @set say_hi ... without reaching into what say_hi is?
-
-  @set #{#{_0}} #{funcbody}
+end:
 }
 
-@function funk {
-  //@puts "hello there"
+@function say_hi {
+  @locals 2
+
+  mov $l[-1] 20
+  add $l[-1] 15
+  mov $r[0] $l[-1]
+
+  @return $r[0]
 }
 
 @call say_hi
-
-//@say_hi
-endprog:
+print $r[0]

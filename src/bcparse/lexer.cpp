@@ -148,10 +148,8 @@ namespace bcparse {
       return readInterpolation();
     } else if (ch[0] == '_' || utf::utf32_isalpha(ch[0])) {
       return readIdentifier();
-    } else if (ch[0] == '$' && (ch[1] == 'r' || ch[1] == 'R')) {
-      return readRegister();
-    } else if (ch[0] == '$' && (ch[1] == 'l' || ch[1] == 'L')) {
-      return readLocal();
+    } else if (ch[0] == '$') {
+      return readDataLocation();
     } else if (ch[0] == ',') {
       int posChange = 0;
       m_sourceStream.next(posChange);
@@ -195,10 +193,10 @@ namespace bcparse {
       utf::char32to8(badToken, badTokenStr);
 
       m_compilationUnit->getErrorList().addError(CompilerError(
-          LEVEL_ERROR,
-          Msg_unexpected_token,
-          location,
-          std::string(badTokenStr)
+        LEVEL_ERROR,
+        Msg_unexpected_token,
+        location,
+        std::string(badTokenStr)
       ));
 
       m_sourceLocation.getColumn() += posChange;
@@ -408,7 +406,7 @@ namespace bcparse {
     // the character as a utf-32 character
     u32char ch = m_sourceStream.peek();
 
-    while (utf::utf32_isdigit(ch) || utf::utf32_isalpha(ch) || ch == '_' || ch == ':') {
+  while (utf::utf32_isdigit(ch) || utf::utf32_isalpha(ch) || ch == '_' || ch == ':') {
       int posChange = 0;
       ch = m_sourceStream.next(posChange);
       m_sourceLocation.getColumn() += posChange;
@@ -455,15 +453,7 @@ namespace bcparse {
     return Token(Token::TK_DIRECTIVE, value, location);
   }
 
-  Token Lexer::readRegister() {
-    return readDataLocation(Token::TK_REG);
-  }
-
-  Token Lexer::readLocal() {
-    return readDataLocation(Token::TK_LOCAL);
-  }
-
-  Token Lexer::readDataLocation(Token::TokenClass type) {
+  Token Lexer::readDataLocation() {
     SourceLocation location = m_sourceLocation;
 
     int posChange;
@@ -472,31 +462,36 @@ namespace bcparse {
     m_sourceStream.next(posChange);
     m_sourceLocation.getColumn() += posChange;
 
-    // read 'R'
-    m_sourceStream.next(posChange);
-    m_sourceLocation.getColumn() += posChange;
+    std::stringstream ss;
 
-    expectChar('[', true, &posChange);
+    Token ident = readIdentifier();
+    ss << ident.getValue();
 
-    // store the register value
-    std::string value;
-
-    // the character as a utf-32 character
-    u32char ch = m_sourceStream.peek();
-
-    while (ch == '-' || ch == '+' || utf::utf32_isdigit(ch)) { // allow signs (negative = relative)
-      int posChange = 0;
-      ch = m_sourceStream.next(posChange);
+    if (m_sourceStream.peek() == '[') {
+      m_sourceStream.next(posChange);
       m_sourceLocation.getColumn() += posChange;
-      // append the raw bytes
-      value.append(utf::get_bytes(ch));
-      // set ch to be the next character in the buffer
-      ch = m_sourceStream.peek();
+
+      ss << '[';
+
+      // the character as a utf-32 character
+      u32char ch = m_sourceStream.peek();
+
+      while (ch == '-' || ch == '+' || utf::utf32_isdigit(ch)) { // allow signs (negative = relative)
+        int posChange = 0;
+        ch = m_sourceStream.next(posChange);
+        m_sourceLocation.getColumn() += posChange;
+        // append the raw bytes
+        ss << utf::get_bytes(ch);
+        // set ch to be the next character in the buffer
+        ch = m_sourceStream.peek();
+      }
+
+      if (expectChar(']', true, &posChange)) {
+        ss << ']';
+      }
     }
 
-    expectChar(']', true, &posChange);
-
-    return Token(type, value, location);
+    return Token(Token::TK_DATA_LOC, ss.str(), location);
   }
 
   Token Lexer::readInterpolation() {

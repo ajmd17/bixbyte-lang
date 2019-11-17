@@ -5,13 +5,17 @@
 #include <assert.h>
 #include <stdlib.h>
 
-interpreter_t *interpreter_create(ubyte_t *data, size_t len) {
+interpreter_t *interpreter_create(runtime_t *rt, ubyte_t *data, size_t len) {
   interpreter_t *it = (interpreter_t*)malloc(sizeof(interpreter_t));
   it->pc = 0;
   it->len = len;
   it->flags = 0;
+
+  it->rt = rt;
+
   it->bc = malloc(sizeof(ubyte_t) * len);
   memcpy(it->bc, data, it->len);
+
   return it;
 }
 
@@ -21,34 +25,40 @@ void interpreter_destroy(interpreter_t *it) {
 }
 
 void interpreter_peek(interpreter_t *it, size_t size, void *out) {
-  memcpy(out, it->bc + it->pc, size);
+  size_t pc = VM_PROGRAM_COUNTER(it->rt->dt);
+
+  memcpy(out, it->bc + pc, size);
 }
 
 void interpreter_seek(interpreter_t *it, size_t loc) {
   // assert(loc < it->len);
-  it->pc = loc;
+  VM_PROGRAM_COUNTER(it->rt->dt) = loc;
 }
 
 void interpreter_read(interpreter_t *it, size_t size, void *out) {
   // assert(it->pc + n <= it->len);
   interpreter_peek(it, size, out);
-  it->pc += size;
+  VM_PROGRAM_COUNTER(it->rt->dt) += size;
 }
 
 bool interpreter_atEnd(interpreter_t *it) {
-  return it->pc >= it->len;
+  return VM_PROGRAM_COUNTER(it->rt->dt) >= it->len;
 }
 
-void interpreter_run(interpreter_t *it, runtime_t *rt) {
+void interpreter_run(interpreter_t *it) {
+  runtime_t *rt = it->rt;
+
   uint8_t data, opcode, flags, cache[64];
 
   while (!interpreter_atEnd(it)) {
-    size_t pcBefore = it->pc;
+    size_t pcBefore = VM_PROGRAM_COUNTER(rt->dt);
 
     interpreter_read(it, sizeof(data), &data);
 
     opcode = data >> 3;
     flags = data & 0x7;
+
+    // printf("stack len : %zu\n", VM_STACK_POINTER(rt->dt));
 
     switch (opcode) {
       case OP_NOOP: break;
@@ -118,20 +128,22 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
         value_t *left, *right;
 
         obj_loc_t o;
-        loc_28_t loc;
-        archtype_t at;
+        loc_28_t locLeft;
+        archtype_t atLeft;
+        loc_28_t locRight;
+        archtype_t atRight;
 
         interpreter_read(it, sizeof(o), &o);
-        obj_loc_parse(o, &loc, &at);
+        obj_loc_parse(o, &locLeft, &atLeft);
 
-        left = datatable_getValue(rt->dt, loc, at);
+        left = datatable_getValue(rt->dt, locLeft, atLeft);
 
         interpreter_read(it, sizeof(o), &o);
-        obj_loc_parse(o, &loc, &at);
+        obj_loc_parse(o, &locRight, &atRight);
 
-        right = datatable_getValue(rt->dt, loc, at);
+        right = datatable_getValue(rt->dt, locRight, atRight);
 
-        if (at & AT_REG) {
+        if (atLeft & AT_REG) {
           // optimization
           *left = *right;
         } else {
@@ -180,7 +192,6 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
         break;
       setInt:
         it->flags = ((0 < cacheval.i) - (cacheval.i < 0)) + 1; // 0, 1, or 2. gets sign() of `val` and adds 1.
-        printf("setInt: %d\n", it->flags);
         break;
       }
 
@@ -227,6 +238,7 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
 
       case OP_PUSH: { // push
         storage_t *stack = &rt->dt->storage[AT_LOCAL];
+        size_t stackLen = *stack->lenVal;
 
         switch (flags) {
           case CONST_FLAGS_NONE: { // push -- load value_t to push to stack
@@ -237,14 +249,14 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
             interpreter_read(it, sizeof(o), &o);
             obj_loc_parse(o, &loc, &at);
 
-            value_copyValue(rt, &stack->data[stack->len], datatable_getValue(rt->dt, loc, at));
+            value_copyValue(rt, &stack->data[stackLen], datatable_getValue(rt->dt, loc, at));
 
             break;
           }
           // shortcuts for pushing constants directly, rather than using multiple instructions
           // @TODO: make these values be copied from a constant pool, rather than by recreating.
           case CONST_FLAGS_NULL: { // pushnull
-            value_t *v = &stack->data[stack->len];
+            value_t *v = &stack->data[stackLen];
             v->data.raw = NULL;
             v->metadata = TYPE_POINTER;
 
@@ -252,25 +264,25 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
           }
           case CONST_FLAGS_I64: { // pushi4
             interpreter_read(it, sizeof(int64_t), cache);
-            value_setInt(rt, &stack->data[stack->len], *((int64_t*)cache));
+            value_setInt(rt, &stack->data[stackLen], *((int64_t*)cache));
 
             break;
           }
           case CONST_FLAGS_U64: { // pushu4
             interpreter_read(it, sizeof(uint64_t), cache);
-            value_setUint(rt, &stack->data[stack->len], *((uint64_t*)cache));
+            value_setUint(rt, &stack->data[stackLen], *((uint64_t*)cache));
 
             break;
           }
           case CONST_FLAGS_F64: { // pushd
             interpreter_read(it, sizeof(double), cache);
-            value_setDouble(rt, &stack->data[stack->len], *((double*)cache));
+            value_setDouble(rt, &stack->data[stackLen], *((double*)cache));
 
             break;
           }
           case CONST_FLAGS_BOOL: { // pushb
             interpreter_read(it, sizeof(uint8_t), cache);
-            value_setBoolean(rt, &stack->data[stack->len], (bool)cache[0]);
+            value_setBoolean(rt, &stack->data[stackLen], (bool)cache[0]);
 
             break;
           }
@@ -282,13 +294,17 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
 
             interpreter_read(it, sz, data);
 
-            value_setRefCounted(rt, &stack->data[stack->len], data);
+            value_setRefCounted(rt, &stack->data[stackLen], data);
 
             break;
           }
         }
 
-        ++stack->len;
+        // TODO: make stack size dynamic?
+        assert(((stackLen + 1) * sizeof(value_t) < STACK_SIZE_BYTES) && "stack overflow");
+
+        ++*stack->lenVal;
+        //++stack->len;
 
         break;
       }
@@ -301,10 +317,8 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
         interpreter_read(it, sizeof(uint16_t), cache);
         uint16_t sz = *((uint16_t*)cache);
 
-        //rt->dt->storage[AT_LOCAL].len -= sz;
-
         while (sz--) { // required to call free() on malloc'd objects
-          value_destroy(rt, &s->data[--s->len]);
+          value_destroy(rt, &s->data[--*s->lenVal]);
         }
 
         break;
@@ -455,6 +469,40 @@ void interpreter_run(interpreter_t *it, runtime_t *rt) {
 
         // @NOTE: reason we are NOT doing value_copyValue() here, is because we want the register value to inherit
         // all responsibilities of `result` here ... including refcounts, free() obligations...
+
+        break;
+      }
+
+      case OP_PRINT: {
+        obj_loc_t o;
+        loc_28_t loc;
+        archtype_t at;
+
+        interpreter_read(it, sizeof(o), &o);
+        obj_loc_parse(o, &loc, &at);
+
+        value_t *v = datatable_getValue(rt->dt, loc, at);
+
+        switch (value_getType(v)) {
+          case TYPE_NONE:
+            printf("none");
+            break;
+          case TYPE_INT:
+            printf("%d", value_getInt(v));
+            break;
+          case TYPE_UINT:
+            printf("%zu", value_getUint(v));
+            break;
+          case TYPE_DOUBLE:
+            printf("%0.f", value_getDouble(v));
+            break;
+          case TYPE_BOOLEAN:
+            printf(value_getBoolean(v) ? "true" : "false");
+            break;
+          default:
+            printf("%p", value_getRawPointer(v));
+            break;
+        }
 
         break;
       }

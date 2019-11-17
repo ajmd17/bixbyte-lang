@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <cstring>
+#include <iostream>
 
 namespace bcparse {
   class BytecodeStream {
@@ -34,7 +35,8 @@ namespace bcparse {
 
     void acceptObjLoc(const ObjLoc &objLoc) {
       uint8_t at = (uint8_t)objLoc.getDataStoreLocation();
-      at |= ((objLoc.getLocation() < 0 ? 0x8 : 0xC) << 2); // neg = relative
+      at |= (objLoc.getLocation() < 0) ? 0x8 : 0xC; // neg = relative
+
       uint32_t payload = (abs(objLoc.getLocation()) << 4) | (at & 0xF);
 
       acceptBytes(payload);

@@ -22,9 +22,7 @@ namespace bcparse {
 
   size_t DataStorage::addStaticData(const Value &value, bool cache) {
     if (cache) {
-      auto it = std::find_if(m_values.begin(), m_values.end(), [&value](const Value &otherValue) {
-        return value.getRawBytes() == otherValue.getRawBytes();
-      });
+      auto it = std::find(m_values.begin(), m_values.end(), value);
 
       if (it != m_values.end()) {
         return it - m_values.begin();

@@ -129,8 +129,12 @@ namespace bcparse {
         : m_level(level),
           m_msg(msg),
           m_location(location) {
-      std::string msg_str = error_message_strings.at(m_msg);
-      makeMessage(msg_str.c_str(), args...);
+      if (m_msg == Msg_custom_error) {
+        makeMessage(args...);
+      } else {
+        std::string msg_str = error_message_strings.at(m_msg);
+        makeMessage(msg_str.c_str(), args...);
+      }
     }
 
     CompilerError(const CompilerError &other);
@@ -145,6 +149,12 @@ namespace bcparse {
 
   private:
     void makeMessage(const char *format) { m_text += format; }
+
+
+    template <typename ... Args>
+    void makeMessage(Args && ... args) {
+      makeMessage(args...);
+    }
 
     template <typename T, typename ... Args>
     void makeMessage(const char *format, T value, Args && ... args) {

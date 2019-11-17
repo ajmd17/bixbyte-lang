@@ -1,19 +1,19 @@
 #pragma once
 
 #include <bcparse/ast/ast_expression.hpp>
+#include <bcparse/ast/ast_integer_literal.hpp>
 
 #include <bcparse/emit/obj_loc.hpp>
 
 namespace bcparse {
   class AstDataLocation : public AstExpression {
   public:
-    AstDataLocation(int value,
-      ObjLoc::DataStoreLocation storagePath,
+    AstDataLocation(const std::string &ident,
+      const Pointer<AstIntegerLiteral> &offset,
       const SourceLocation &location);
     virtual ~AstDataLocation() = default;
 
-    const int getValue() const { return m_value; }
-    const ObjLoc::DataStoreLocation getStoragePath() const { return m_storagePath; }
+    inline const std::string &getIdent() const { return m_ident; }
 
     virtual void visit(AstVisitor *visitor, Module *mod) override;
     virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
@@ -22,13 +22,16 @@ namespace bcparse {
     virtual Pointer<AstStatement> clone() const override;
 
   private:
-    int m_value;
-    ObjLoc::DataStoreLocation m_storagePath;
+    std::string m_ident;
+    Pointer<AstIntegerLiteral> m_offset;
+
+    // set during walk
+    int m_storagePath;
 
     inline Pointer<AstDataLocation> CloneImpl() const {
       return Pointer<AstDataLocation>(new AstDataLocation(
-        m_value,
-        m_storagePath,
+        m_ident,
+        cloneAstNode(m_offset),
         m_location
       ));
     }

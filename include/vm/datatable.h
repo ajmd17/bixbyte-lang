@@ -10,11 +10,19 @@
 #define STATIC_DATA_SIZE_BYTES (MB_TO_BYTES(DEFAULT_STATIC_DATA_SIZE_MB) - (MB_TO_BYTES(DEFAULT_STATIC_DATA_SIZE_MB) % sizeof(value_t)))
 #define DEFAULT_STACK_SIZE_MB 20 // in MB
 #define STACK_SIZE_BYTES (MB_TO_BYTES(DEFAULT_STACK_SIZE_MB) - (MB_TO_BYTES(DEFAULT_STACK_SIZE_MB) % sizeof(value_t)))
+
+#define VM_DATA(datatable, index) (datatable->storage[AT_VM].data[index])
+#define VM_PROGRAM_COUNTER(datatable) (VM_DATA(datatable, 0).data.u64)
+#define VM_DATA_POINTER(datatable) (VM_DATA(datatable, 1 + AT_VM).data.u64)
+#define VM_STATIC_DATA_POINTER(datatable) (VM_DATA(datatable, 1 + AT_DATA).data.u64)
+#define VM_STACK_POINTER(datatable) (VM_DATA(datatable, 1 + AT_LOCAL).data.u64)
+#define VM_REG_POINTER(datatable) (VM_DATA(datatable, 1 + AT_REG).data.u64)
+
 #define NUM_REGISTERS 4
 
 typedef struct storage {
   value_t *data;
-  size_t len;
+  uint64_t *lenVal;
 } storage_t;
 
 typedef struct datatable {

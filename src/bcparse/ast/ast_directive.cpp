@@ -62,17 +62,33 @@ namespace bcparse {
         "@macro requires arguments (name)"
       ));
     } else {
-      if (m_arguments[0] != nullptr && m_arguments[0]->getValueOf() != nullptr) {
-        nameArg = dynamic_cast<AstSymbol*>(m_arguments[0]->getValueOf());
+      AstExpression *deepValue = nullptr;
+
+      if (auto nameArgExpr = m_arguments[0].get()) {
+        nameArgExpr->visit(visitor, mod);
+
+        if ((deepValue = nameArgExpr->getDeepValueOf()) != nullptr) {
+          nameArg = dynamic_cast<AstSymbol*>(deepValue);
+        }
       }
 
       if (nameArg == nullptr) {
-        visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
-          LEVEL_ERROR,
-          Msg_custom_error,
-          m_location,
-          "@macro (name) must be an identifier"
-        ));
+        if (m_arguments[0] != nullptr && deepValue != nullptr) {
+          visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
+            LEVEL_ERROR,
+            Msg_custom_error,
+            m_arguments[0]->getLocation(),
+            "@set (key) must be an identifier, got %",
+            AstExpression::nodeToString(visitor, deepValue)
+          ));
+        } else {
+          visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
+            LEVEL_ERROR,
+            Msg_custom_error,
+            m_location,
+            "@set (key) must be an identifier"
+          ));
+        }
       } else {
         if (Macro *macro = visitor->getCompilationUnit()->getBoundGlobals().lookupMacro(nameArg->getName())) {
           visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
@@ -183,21 +199,33 @@ namespace bcparse {
         "@set requires arguments (key, value)"
       ));
     } else {
+      AstExpression *deepValue = nullptr;
+
       if (auto nameArgExpr = m_arguments[0].get()) {
         nameArgExpr->visit(visitor, mod);
 
-        if (nameArgExpr->getDeepValueOf() != nullptr) {
-          nameArg = dynamic_cast<AstSymbol*>(nameArgExpr->getDeepValueOf());
+        if ((deepValue = nameArgExpr->getDeepValueOf()) != nullptr) {
+          nameArg = dynamic_cast<AstSymbol*>(deepValue);
         }
       }
 
       if (nameArg == nullptr) {
-        visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
-          LEVEL_ERROR,
-          Msg_custom_error,
-          m_location,
-          "@set (key) must be an identifier"
-        ));
+        if (m_arguments[0] != nullptr && deepValue != nullptr) {
+          visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
+            LEVEL_ERROR,
+            Msg_custom_error,
+            m_arguments[0]->getLocation(),
+            "@set (key) must be an identifier, got %",
+            AstExpression::nodeToString(visitor, deepValue)
+          ));
+        } else {
+          visitor->getCompilationUnit()->getErrorList().addError(CompilerError(
+            LEVEL_ERROR,
+            Msg_custom_error,
+            m_location,
+            "@set (key) must be an identifier"
+          ));
+        }
       }
 
       if ((valueArg = m_arguments[1].get())) {
@@ -223,18 +251,12 @@ namespace bcparse {
         BoundVariables *boundVariables = &visitor->getCompilationUnit()->getBoundGlobals();
 
         while (boundVariables->getParent() != nullptr) {
-          // if (boundVariables->getParent()->getParent() == nullptr) {
-          //   break;
-          // }
-
           boundVariables = boundVariables->getParent();
         }
 
         Pointer<AstExpression> clonedExpr = std::dynamic_pointer_cast<AstExpression>(valueArg->clone());
 
         boundVariables->set(nameArg->getName(), clonedExpr);
-        std::cout << "set " << nameArg->getName() << "\n";
-        // clonedExpr->visit(visitor, mod);
       }
     }
   }
@@ -328,7 +350,7 @@ namespace bcparse {
         arg->visit(visitor, mod);
       }
 
-      std::cout << nodeToString(visitor, arg.get()) << "  ";
+      std::cout << AstExpression::nodeToString(visitor, arg.get()) << "  ";
     }
 
     std::cout << "\n";
@@ -338,48 +360,6 @@ namespace bcparse {
   }
 
   void AstDebugDirective::optimize(AstVisitor *visitor, Module *mod) {
-  }
-
-  std::string AstDebugDirective::nodeToString(AstVisitor *visitor, AstExpression *node) {
-    std::stringstream ss;
-
-    if (node == nullptr || node->getDeepValueOf() == nullptr) {
-      ss << "nullptr";
-    } else if (auto asSym = dynamic_cast<AstSymbol*>(node->getValueOf())) {
-      if (asSym->getName() == "vars") {
-        // if currently in global scope, set the var as a global.
-        // if not, bubble up to the scope highest enough to not reach global
-        BoundVariables *root = &visitor->getCompilationUnit()->getBoundGlobals();
-        std::vector<std::map<std::string, Pointer<AstExpression>>*> allBound;
-
-        while (root->getParent() != nullptr) {
-          allBound.push_back(&root->getMap());
-          root = root->getParent();
-        }
-
-        std::reverse(allBound.begin(), allBound.end());
-
-        for (size_t i = 0; i < allBound.size(); i++) {
-          ss << "\n";
-
-          for (auto it : *allBound[i]) {
-            for (int j = 0; j < i; j++) {
-              ss << "  ";
-            }
-
-            ss << it.first << ": " << nodeToString(visitor, it.second.get()) << "\n";
-          }
-        }
-      } else {
-        ss << "Symbol(" << asSym->getName() << ")";
-      }
-    } else if (auto asIdent = dynamic_cast<AstVariable*>(node->getValueOf())) {
-      ss << nodeToString(visitor, asIdent->getValue().get());
-    } else {
-      ss << node->toString();
-    }
-
-    return ss.str();
   }
 
 

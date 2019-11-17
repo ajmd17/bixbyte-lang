@@ -25,8 +25,9 @@ static char buf[1024 * 16];
   "int main(int argc, char *argv[]) {\n" \
   "runtime_t *rt = runtime_create();\n"
 
-void jit_run(interpreter_t *it, runtime_t *rt) {
+void jit_run(interpreter_t *it) {
   uint8_t data, opcode, flags, cache[64];
+  runtime_t *rt = it->rt;
 
   char bb8_jitStream[BB8_JIT_BUFFER_SIZE];
   memset(bb8_jitStream, '\0', BB8_JIT_BUFFER_SIZE);

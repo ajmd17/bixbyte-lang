@@ -105,7 +105,6 @@ namespace bcparse {
     Flags m_flags;
   };
 
-  // TODO: cmp flags
   class Op_Cmp : public Buildable {
   public:
     Op_Cmp(const ObjLoc &left, const ObjLoc &right);
@@ -118,6 +117,159 @@ namespace bcparse {
   private:
     ObjLoc m_left;
     ObjLoc m_right;
+  };
+
+  class Op_Add : public Buildable {
+  public:
+    Op_Add(const ObjLoc &left, const ObjLoc &right);
+    Op_Add(const Op_Add &other) = delete;
+    virtual ~Op_Add() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_left;
+    ObjLoc m_right;
+  };
+
+  class Op_Sub : public Buildable {
+  public:
+    Op_Sub(const ObjLoc &left, const ObjLoc &right);
+    Op_Sub(const Op_Sub &other) = delete;
+    virtual ~Op_Sub() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_left;
+    ObjLoc m_right;
+  };
+
+  class Op_Mul : public Buildable {
+  public:
+    Op_Mul(const ObjLoc &left, const ObjLoc &right);
+    Op_Mul(const Op_Mul &other) = delete;
+    virtual ~Op_Mul() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_left;
+    ObjLoc m_right;
+  };
+
+  class Op_Div : public Buildable {
+  public:
+    Op_Div(const ObjLoc &left, const ObjLoc &right);
+    Op_Div(const Op_Div &other) = delete;
+    virtual ~Op_Div() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_left;
+    ObjLoc m_right;
+  };
+
+  class Op_Mod : public Buildable {
+  public:
+    Op_Mod(const ObjLoc &left, const ObjLoc &right);
+    Op_Mod(const Op_Mod &other) = delete;
+    virtual ~Op_Mod() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_left;
+    ObjLoc m_right;
+  };
+
+  class Op_Xor : public Buildable {
+  public:
+    Op_Xor(const ObjLoc &left, const ObjLoc &right);
+    Op_Xor(const Op_Xor &other) = delete;
+    virtual ~Op_Xor() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_left;
+    ObjLoc m_right;
+  };
+
+  class Op_And : public Buildable {
+  public:
+    Op_And(const ObjLoc &left, const ObjLoc &right);
+    Op_And(const Op_And &other) = delete;
+    virtual ~Op_And() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_left;
+    ObjLoc m_right;
+  };
+
+  class Op_Or : public Buildable {
+  public:
+    Op_Or(const ObjLoc &left, const ObjLoc &right);
+    Op_Or(const Op_Or &other) = delete;
+    virtual ~Op_Or() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_left;
+    ObjLoc m_right;
+  };
+
+  class Op_Shl : public Buildable {
+  public:
+    Op_Shl(const ObjLoc &left, const ObjLoc &right);
+    Op_Shl(const Op_Shl &other) = delete;
+    virtual ~Op_Shl() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_left;
+    ObjLoc m_right;
+  };
+
+  class Op_Shr : public Buildable {
+  public:
+    Op_Shr(const ObjLoc &left, const ObjLoc &right);
+    Op_Shr(const Op_Shr &other) = delete;
+    virtual ~Op_Shr() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_left;
+    ObjLoc m_right;
+  };
+
+  class Op_Print : public Buildable {
+  public:
+    Op_Print(const ObjLoc &objLoc);
+    Op_Print(const Op_Print &other) = delete;
+    virtual ~Op_Print() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_objLoc;
   };
 
   class Op_Halt : public Buildable {

@@ -11,8 +11,7 @@ namespace bcparse {
       case TK_FLOAT:         return "TK_FLOAT";
       case TK_STRING:        return "TK_STRING";
       case TK_OPCODE:        return "TK_OPCODE";
-      case TK_REG:           return "TK_REG";
-      case TK_LOCAL:         return "TK_LOCAL";
+      case TK_DATA_LOC:      return "TK_DATA_LOC";
       case TK_ADDR:          return "TK_ADDR";
       case TK_IDENT:         return "TK_IDENT";
       case TK_TAG:           return "TK_TAG";
@@ -47,11 +46,8 @@ namespace bcparse {
       case TK_INTERPOLATION:
         ss << "#{" << token.getValue() << "}";
         break;
-      case TK_REG:
-        ss << "$R[" << token.getValue() << "]";
-        break;
-      case TK_LOCAL:
-        ss << "$L[" << token.getValue() << "]";
+      case TK_DATA_LOC:
+        ss << "$" << token.getValue();
         break;
       case TK_NEWLINE:       return "\n";
       default:               return token.getValue();
