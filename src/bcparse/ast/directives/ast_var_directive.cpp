@@ -1,6 +1,10 @@
 #include <bcparse/ast/directives/ast_var_directive.hpp>
 
 #include <bcparse/ast/ast_symbol.hpp>
+#include <bcparse/ast/ast_string_literal.hpp>
+#include <bcparse/ast/ast_integer_literal.hpp>
+#include <bcparse/ast/ast_unset.hpp>
+#include <bcparse/ast/ast_variable.hpp>
 
 #include <bcparse/ast_visitor.hpp>
 #include <bcparse/compilation_unit.hpp>

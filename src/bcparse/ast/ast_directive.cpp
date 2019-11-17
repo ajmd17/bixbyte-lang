@@ -1,10 +1,4 @@
 #include <bcparse/ast/ast_directive.hpp>
-#include <bcparse/ast/ast_string_literal.hpp>
-#include <bcparse/ast/ast_integer_literal.hpp>
-#include <bcparse/ast/ast_unset.hpp>
-#include <bcparse/ast/ast_variable.hpp>
-#include <bcparse/ast/ast_symbol.hpp>
-#include <bcparse/ast/ast_code_body.hpp>
 
 #include <bcparse/ast/directives/ast_macro_directive.hpp>
 #include <bcparse/ast/directives/ast_var_directive.hpp>
@@ -14,11 +8,6 @@
 
 #include <bcparse/emit/bytecode_chunk.hpp>
 
-#include <bcparse/lexer.hpp>
-#include <bcparse/parser.hpp>
-#include <bcparse/analyzer.hpp>
-#include <bcparse/compiler.hpp>
-#include <bcparse/ast_iterator.hpp>
 #include <bcparse/ast_visitor.hpp>
 #include <bcparse/compilation_unit.hpp>
 #include <bcparse/bound_variables.hpp>
