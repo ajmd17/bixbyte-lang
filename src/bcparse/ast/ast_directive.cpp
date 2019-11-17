@@ -5,6 +5,7 @@
 #include <bcparse/ast/directives/ast_set_directive.hpp>
 #include <bcparse/ast/directives/ast_debug_directive.hpp>
 #include <bcparse/ast/directives/ast_user_defined_directive.hpp>
+#include <bcparse/ast/directives/ast_include_directive.hpp>
 
 #include <bcparse/emit/bytecode_chunk.hpp>
 
@@ -66,6 +67,8 @@ namespace bcparse {
       m_impl = new AstSetDirective(m_arguments, m_tokens, m_location);
     } else if (m_name == "debug") {
       m_impl = new AstDebugDirective(m_arguments, m_tokens, m_location);
+    } else if (m_name == "include") {
+      m_impl = new AstIncludeDirective(m_arguments, m_tokens, m_location);
     } else if (visitor->getCompilationUnit()->getBoundGlobals().lookupMacro(m_name)) {
       m_impl = new AstUserDefinedDirective(m_name, m_arguments, m_tokens, m_location);
     }

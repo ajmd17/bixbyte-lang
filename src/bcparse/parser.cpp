@@ -1,5 +1,3 @@
-#include <typeinfo>
-
 #include <bcparse/parser.hpp>
 #include <bcparse/lexer.hpp>
 #include <bcparse/analyzer.hpp>

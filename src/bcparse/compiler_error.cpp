@@ -90,7 +90,7 @@ namespace bcparse {
 
     /* Warnings */
     { Msg_unreachable_code, "Unreachable code detected" },
-    { Msg_expected_end_of_statement, "End of statement expected (use a newline or semicolon to end a statement)" },
+    { Msg_expected_end_of_statement, "End of statement expected (use a newline to end a statement)" },
 
     /* Info */
     { Msg_unused_identifier, "'%' is not used" },
