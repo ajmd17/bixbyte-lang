@@ -27,6 +27,10 @@ namespace bcparse {
 
       return;
     }
+
+    ASSERT(m_astLabel != nullptr);
+
+    m_astLabel->visit(visitor, mod);
   }
 
   void AstLabelDecl::build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) {
