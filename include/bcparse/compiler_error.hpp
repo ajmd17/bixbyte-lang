@@ -4,7 +4,7 @@
 #include <sstream>
 #include <map>
 
-#include <bcparse/source_location.hpp>
+#include <shared/source_location.hpp>
 
 namespace bcparse {
   enum ErrorLevel {

@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include <bcparse/source_location.hpp>
+#include <shared/source_location.hpp>
 
 namespace bcparse {
   class Token {

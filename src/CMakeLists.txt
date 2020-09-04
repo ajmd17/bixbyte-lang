@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(pie-lang)
+project(bix-lang)
 
 include(CheckCXXCompilerFlag)
 
@@ -38,5 +38,6 @@ if(MSVC)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif(MSVC)
 
+add_subdirectory(shared)
 add_subdirectory(bcparse)
 add_subdirectory(vm)

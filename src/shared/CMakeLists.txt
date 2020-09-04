@@ -1,18 +1,17 @@
 cmake_minimum_required(VERSION 3.5)
 
-file (GLOB_RECURSE bcparse_SOURCES "*.cpp")
-file (GLOB_RECURSE bcparse_HEADERS "../../include/bcparse/*.hpp")
+file (GLOB_RECURSE shared_SOURCES "*.cpp")
+file (GLOB_RECURSE shared_HEADERS "../../include/shared/*.hpp")
 
-foreach(f IN LISTS bcparse_SOURCES)
+foreach(f IN LISTS shared_SOURCES)
   get_filename_component(b ${f} NAME)
   set_source_files_properties(${f} PROPERTIES
     COMPILE_DEFINITIONS "__FILENAME__=${b}")
 endforeach()
-foreach(f IN LISTS bcparse_HEADERS)
+foreach(f IN LISTS shared_HEADERS)
   get_filename_component(b ${f} NAME)
   set_source_files_properties(${f} PROPERTIES
     COMPILE_DEFINITIONS "__FILENAME__=${b}")
 endforeach()
 
-add_executable(bcparse ${bcparse_SOURCES} ${bcparse_HEADERS})
-target_link_libraries(bcparse shared)
+add_library(shared ${shared_SOURCES} ${shared_HEADERS})

@@ -1,7 +1,8 @@
 #pragma once
 
+#include <shared/source_location.hpp>
+
 #include <bcparse/source_stream.hpp>
-#include <bcparse/source_location.hpp>
 #include <bcparse/token.hpp>
 
 namespace bcparse {

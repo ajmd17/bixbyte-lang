@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 file (GLOB_RECURSE vm_SOURCES "*.c")
-file (GLOB_RECURSE vm_HEADERS "../../include/vm/*.hpp")
+file (GLOB_RECURSE vm_HEADERS "../../include/vm/*.h")
 
 foreach(f IN LISTS vm_SOURCES)
   get_filename_component(b ${f} NAME)

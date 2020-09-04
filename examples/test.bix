@@ -1,0 +1,32 @@
+mod test
+
+PlainObject: Trait = ($meta {
+  keys<self>.all((key) => {
+
+  })
+})
+
+Serializable := Trait {
+  toPlainObject: (self: Self) -> PlainObject
+}
+
+@Serializable
+User := @type {
+  @private {
+    name: String
+    birthdate: Date
+  }
+
+  def self(name: String, age: Date) {
+    self.name = name
+    self.birthdate = birthdate
+  }
+
+  @property age -> {
+    Date::today() - self.birthdate
+  }
+
+  implement(Serializable::toPlainObject) {
+
+  }
+}

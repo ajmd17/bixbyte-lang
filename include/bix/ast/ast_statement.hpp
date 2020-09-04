@@ -14,10 +14,10 @@ using std::shared_ptr;
 using std::vector;
 using std::static_pointer_cast;
 
-namespace bcparse {
+namespace bix {
   class AstVisitor;
+  class AstIterator;
   class Module;
-  class BytecodeChunk;
 
   class AstStatement {
   public:
@@ -28,11 +28,12 @@ namespace bcparse {
     inline const SourceLocation &getLocation() const { return m_location; }
 
     virtual void visit(AstVisitor *visitor, Module *mod) = 0;
-    virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) = 0;
+    // In place of build(), we will 'transform' the node and child nodes
+    // into bb8 AST Nodes, which will append to `out`.
+    virtual void transform(AstVisitor *visitor, Module *mod, AstIterator *out) = 0;
     virtual void optimize(AstVisitor *visitor, Module *mod) = 0;
 
     virtual Pointer<AstStatement> clone() const = 0;
-    virtual bool isHoisted() const;
 
   protected:
     SourceLocation m_location;

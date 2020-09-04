@@ -1,5 +1,5 @@
-#if 1
 #include <bcparse/ast/ast_symbol.hpp>
+
 #include <bcparse/ast_visitor.hpp>
 #include <bcparse/compilation_unit.hpp>
 
@@ -27,4 +27,3 @@ namespace bcparse {
     return CloneImpl();
   }
 }
-#endif
