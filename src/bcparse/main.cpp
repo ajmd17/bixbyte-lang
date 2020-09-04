@@ -15,6 +15,10 @@
 #include <bcparse/analyzer.hpp>
 #include <bcparse/compiler.hpp>
 #include <bcparse/emit/emitter.hpp>
+#include <bcparse/ast/ast_data_location.hpp>
+#include <bcparse/ast/ast_integer_literal.hpp>
+
+#include <shared/builtins.h>
 
 #include <common/clarg.hpp>
 #include <common/str_util.hpp>
@@ -102,6 +106,20 @@ namespace bcparse {
   };
 }
 
+void defineBuiltinFunction(CompilationUnit *unit, const std::string &name, BUILTIN_C_FUNCTIONS value) {
+  unit->getBoundGlobals().set(
+    name,
+    Pointer<AstDataLocation>(new AstDataLocation(
+      "s",
+      Pointer<AstIntegerLiteral>(new AstIntegerLiteral(
+        value,
+        SourceLocation::eof
+      )),
+      SourceLocation::eof
+    ))
+  );
+}
+
 Result handleArgs(int argc, char *argv[]) {
   if (argc != 2) {
     return { false, std::string("Invalid arguments: expected `") + argv[0] + " <filename>`" };
@@ -130,6 +148,21 @@ Result handleArgs(int argc, char *argv[]) {
   BytecodeChunk chunk;
   DataStorage dataStorage;
   CompilationUnit unit(&dataStorage);
+
+  // bake in default c functions
+  defineBuiltinFunction(&unit, "createObject", BUILTIN_SYSTEM_CREATE_OBJECT);
+  defineBuiltinFunction(&unit, "getObjectMember", BUILTIN_SYSTEM_GET_OBJECT_MEMBER);
+  defineBuiltinFunction(&unit, "setObjectMember", BUILTIN_SYSTEM_SET_OBJECT_MEMBER);
+
+  defineBuiltinFunction(&unit, "exit", BUILTIN_SYSTEM_C_EXIT);
+  defineBuiltinFunction(&unit, "fmod", BUILTIN_SYSTEM_C_FMOD);
+  defineBuiltinFunction(&unit, "strlen", BUILTIN_SYSTEM_C_STRLEN);
+
+  defineBuiltinFunction(&unit, "fopen", BUILTIN_SYSTEM_C_FOPEN);
+  defineBuiltinFunction(&unit, "fclose", BUILTIN_SYSTEM_C_FCLOSE);
+  defineBuiltinFunction(&unit, "fread", BUILTIN_SYSTEM_C_FREAD);
+  defineBuiltinFunction(&unit, "fwrite", BUILTIN_SYSTEM_C_FWRITE);
+  defineBuiltinFunction(&unit, "fseek", BUILTIN_SYSTEM_C_FSEEK);
 
   Result r = CompilerHelper::buildSourceFile(inFilename, &unit, &chunk);
 

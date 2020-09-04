@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#include <time.h>
 #include <pthread.h>
 
 // ===== Instructions =====
@@ -15,6 +16,10 @@
 #include <vm/types.h>
 
 #include <vm/jit.h>
+
+#define MEASURE_EXECUTION_TIME_BEGIN clock_t begin = clock()
+#define MEASURE_EXECUTION_TIME_END clock_t end = clock()
+#define MEASURE_EXECUTION_TIME_RESULT (double)(end - begin) / CLOCKS_PER_SEC
 
 
 // enum _VALUE_FLAGS;
@@ -225,7 +230,70 @@ value_t *args_getArg(args_t *args, size_t index) {
 
 // ===== Builtin bindings =====
 value_t _System_createObject(runtime_t *r, args_t *args) {
-  return value_createObject(r->heap);
+  return value_createObject(r, r->heap);
+}
+
+value_t _System_getObjectMember(runtime_t *r, args_t *args) {
+  value_t result;
+  result.metadata = TYPE_NONE;
+
+  value_t *target = args_getArg(args, 0);
+  value_t *member_key = args_getArg(args, 1);
+
+  char *member_key_str = (char*)value_getRawPointer(member_key);
+
+  if ((target->metadata & (TYPE_POINTER | (FLAG_OBJECT << 8))) != (TYPE_POINTER | (FLAG_OBJECT << 8))) {
+    // TODO: throw exception cause its not an object
+    return result;
+  }
+
+  heap_value_t *hv = value_getHeapNode(target);
+
+  object_t *object = (object_t*)hv->ptr;
+  value_t *member_ptr = NULL;
+
+  if (object_getPtr(object, member_key_str, &member_ptr) != OBJECT_OK) {
+    // TODO throw exception cause member not found
+
+    return result;
+  }
+
+  value_copyValue(r, &result, member_ptr);
+
+  return result;
+}
+
+value_t _System_setObjectMember(runtime_t *r, args_t *args) {
+  value_t result;
+  result.metadata = TYPE_NONE;
+
+  value_t *target = args_getArg(args, 0);
+  value_t *member_key = args_getArg(args, 1);
+  char *member_key_str = (char*)value_getRawPointer(member_key);
+
+  value_t *member_value = args_getArg(args, 2);
+
+  if ((target->metadata & (TYPE_POINTER | (FLAG_OBJECT << 8))) != (TYPE_POINTER | (FLAG_OBJECT << 8))) {
+    // TODO: throw exception cause its not an object
+    return result;
+  }
+
+  heap_value_t *hv = value_getHeapNode(target);
+
+  object_t *object = (object_t*)hv->ptr;
+
+  int result_code;
+
+  value_copyValue(r, &result, member_value);
+
+  if ((result_code = object_put(object, member_key_str, &result)) != OBJECT_OK) {
+    // TODO throw exception cause could not set member
+    value_setInt(r, &result, result_code);
+
+    return result;
+  }
+
+  return result;
 }
 
 // ===== C Lib functions =====
@@ -246,6 +314,56 @@ value_t _System_C_fmod(runtime_t *r, args_t *args) {
 
 value_t _System_C_strlen(runtime_t *r, args_t *args) {
   return value_fromInt(strlen((char*)value_getRawPointer(args_getArg(args, 0))));
+}
+
+value_t _System_C_fopen(runtime_t *r, args_t *args) {
+  char *filename = (char*)value_getRawPointer(args_getArg(args, 0));
+  char *mode = (char*)value_getRawPointer(args_getArg(args, 1));
+
+  FILE *file = fopen(filename, mode);
+
+  return value_fromRawPointer((void*)file, 0);
+}
+
+value_t _System_C_fclose(runtime_t *r, args_t *args) {
+  FILE *file = (FILE*)value_getRawPointer(args_getArg(args, 0));
+
+  return value_fromInt(fclose(file));
+}
+
+value_t _System_C_fread(runtime_t *r, args_t *args) {
+  FILE *file = (FILE*)value_getRawPointer(args_getArg(args, 0));
+  int64_t size = value_getInt(args_getArg(args, 1));
+
+  char *data = malloc(size);
+
+  memset(data, 0, size);
+
+  fread(data, 1, size, file);
+
+  value_t v;
+  v.metadata = TYPE_NONE;
+
+  value_setRefCounted(r, &v, data);
+
+  return v;
+}
+
+value_t _System_C_fwrite(runtime_t *r, args_t *args) {
+  FILE *file = (FILE*)value_getRawPointer(args_getArg(args, 0));
+  int64_t size = value_getInt(args_getArg(args, 1));
+  void *raw = value_getRawPointer(args_getArg(args, 2));
+  size_t result = fwrite(raw, 1, size, file);
+
+  return value_fromInt(result);
+}
+
+value_t _System_C_fseek(runtime_t *r, args_t *args) {
+  FILE *file = (FILE*)value_getRawPointer(args_getArg(args, 0));
+  int64_t offset = value_getInt(args_getArg(args, 1));
+  int64_t origin = value_getInt(args_getArg(args, 2));
+
+  return value_fromInt(fseek(file, offset, origin));
 }
 
 // ===== Utility functions =====
@@ -344,10 +462,19 @@ void openFile(interpreter_data_t *iData, int argc, char *argv[]) {
   (byte & 0x02 ? '1' : '0'), \
   (byte & 0x01 ? '1' : '0')
 
+
+
+#define SET_BUILTIN_C_FUNCTION(enum_item, c_func) \
+  iData.rt->dt->storage[AT_DATA].data[enum_item] = value_fromFunction(c_func)
+
+#include <shared/builtins.h>
+
 #if 1
 
 // ===== Main driver =====
 int main(int argc, char *argv[]) {
+  MEASURE_EXECUTION_TIME_BEGIN;
+
   interpreter_data_t iData;
 
   if (argc == 2 || argc == 3) {
@@ -358,6 +485,19 @@ int main(int argc, char *argv[]) {
   }
 
   iData.rt = runtime_create();
+  SET_BUILTIN_C_FUNCTION(BUILTIN_SYSTEM_CREATE_OBJECT, _System_createObject);
+  SET_BUILTIN_C_FUNCTION(BUILTIN_SYSTEM_GET_OBJECT_MEMBER, _System_getObjectMember);
+  SET_BUILTIN_C_FUNCTION(BUILTIN_SYSTEM_SET_OBJECT_MEMBER, _System_setObjectMember);
+
+  SET_BUILTIN_C_FUNCTION(BUILTIN_SYSTEM_C_EXIT, _System_C_exit);
+  SET_BUILTIN_C_FUNCTION(BUILTIN_SYSTEM_C_FMOD, _System_C_fmod);
+  SET_BUILTIN_C_FUNCTION(BUILTIN_SYSTEM_C_STRLEN, _System_C_strlen);
+
+  SET_BUILTIN_C_FUNCTION(BUILTIN_SYSTEM_C_FOPEN, _System_C_fopen);
+  SET_BUILTIN_C_FUNCTION(BUILTIN_SYSTEM_C_FCLOSE, _System_C_fclose);
+  SET_BUILTIN_C_FUNCTION(BUILTIN_SYSTEM_C_FREAD, _System_C_fread);
+  SET_BUILTIN_C_FUNCTION(BUILTIN_SYSTEM_C_FWRITE, _System_C_fwrite);
+  SET_BUILTIN_C_FUNCTION(BUILTIN_SYSTEM_C_FSEEK, _System_C_fseek);
 
   bool genc = false;
 
@@ -387,6 +527,10 @@ int main(int argc, char *argv[]) {
   runtime_destroy(iData.rt);
 
   free(iData.data);
+
+  MEASURE_EXECUTION_TIME_END;
+
+  printf("Execution time: %f\n", MEASURE_EXECUTION_TIME_RESULT);
 
   return 0;
 }

@@ -18,6 +18,7 @@ datatable_t *datatable_create() {
   memset(dt->storage[AT_DATA].data, 0, STATIC_DATA_SIZE_BYTES);
   // dt->storage[AT_DATA].len = 0;
   dt->storage[AT_DATA].lenVal = &VM_STATIC_DATA_POINTER(dt);
+  *dt->storage[AT_DATA].lenVal = 128; // reserve 128 spaces for builtin functions
 
   dt->storage[AT_LOCAL].data = (value_t*)malloc(STACK_SIZE_BYTES);
   memset(dt->storage[AT_LOCAL].data, 0, STACK_SIZE_BYTES);
@@ -55,7 +56,7 @@ void datatable_markTable(storage_t *s) {
     value_t *v = &s->data[*s->lenVal - 1];
 
     // @TODO partitioning to prevent branch prediction misses?
-    if (v->metadata & (TYPE_POINTER | (FLAG_OBJECT << 8))) {
+    if (v->metadata & (TYPE_POINTER | (FLAG_OBJECT << 8)) == (TYPE_POINTER | (FLAG_OBJECT << 8))) {
       v->data.hv->flags |= FLAG_MARKED;
     }
 

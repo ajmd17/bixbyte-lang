@@ -257,6 +257,8 @@ void interpreter_run(interpreter_t *it) {
           // @TODO: make these values be copied from a constant pool, rather than by recreating.
           case CONST_FLAGS_NULL: { // pushnull
             value_t *v = &stack->data[stackLen];
+            value_destroy(rt, v);
+
             v->data.raw = NULL;
             v->metadata = TYPE_POINTER;
 
@@ -318,7 +320,11 @@ void interpreter_run(interpreter_t *it) {
         uint16_t sz = *((uint16_t*)cache);
 
         while (sz--) { // required to call free() on malloc'd objects
-          value_destroy(rt, &s->data[--*s->lenVal]);
+          value_t *ptr = &s->data[--*s->lenVal];
+
+          value_destroy(rt, ptr);
+
+          ptr->metadata = TYPE_NONE;
         }
 
         break;

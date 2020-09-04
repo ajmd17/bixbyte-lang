@@ -9,6 +9,7 @@ typedef struct storage storage_t;
 
 typedef struct args {
   storage_t *_stack;
+  void *_rawData;
 } args_t;
 
 typedef uint32_t metadata_t;

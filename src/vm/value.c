@@ -93,15 +93,25 @@ value_t value_fromBoolean(bool b) {
   return v;
 }
 
-value_t value_createObject(heap_t *heap) {
+value_t value_createObject(runtime_t *rt, heap_t *heap) {
   value_t v;
-  v.data.hv = heap_alloc(heap);
+  v.data.hv = heap_alloc(rt, heap);
   v.metadata = TYPE_POINTER | (FLAG_OBJECT << 8);
+
+  object_t *object = object_create();
+
+  v.data.hv->ptr = object;
+  v.data.hv->dtor_ptr = (native_function_t)object_destructor;
+
   return v;
 }
 
 void *value_getRawPointer(value_t *value) {
   return value->data.raw;
+}
+
+heap_value_t *value_getHeapNode(value_t *value) {
+  return value->data.hv;
 }
 
 void value_setRawPointer(runtime_t *rt, value_t *v, void *raw, VALUE_FLAGS flags) {
@@ -180,6 +190,7 @@ uintptr_t value_getID(value_t *value) {
 value_t value_invoke(runtime_t *r, value_t *value) {
   args_t args;
   args._stack = &r->dt->storage[AT_LOCAL];
+  args._rawData = NULL;
 
   return value->data.fn(r, &args);
 }

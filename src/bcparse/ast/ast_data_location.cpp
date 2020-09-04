@@ -79,8 +79,17 @@ namespace bcparse {
     ASSERT(m_offset != nullptr);
     ASSERT(m_storagePath != -1);
 
+    int offsetValue = m_offset->getValue();
+
+    if (offsetValue < 0) { // relative
+      // for function arguments, they're passed in reverse order,
+      // so $l[-1] 123 needs to become
+      //    $l[-2] 123 as 123 would be pushed to stack first
+      offsetValue -= visitor->getCompilationUnit()->getRelativeStackOffset().current();
+    }
+
     m_objLoc = ObjLoc(
-      m_offset->getValue(),
+      offsetValue,
       (ObjLoc::DataStoreLocation)m_storagePath
     );
   }

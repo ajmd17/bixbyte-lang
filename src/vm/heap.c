@@ -1,5 +1,6 @@
 #include <vm/heap.h>
 #include <vm/value.h>
+#include <vm/runtime.h>
 
 #include <stdlib.h>
 
@@ -10,13 +11,21 @@ heap_node_t *heap_node_create() {
   heap_node_t *node = (heap_node_t*)malloc(sizeof(heap_node_t));
   node->hv.ptr = NULL;
   node->hv.flags = 0;
+  node->hv.dtor_ptr = NULL;
   node->prev = NULL;
   node->next = NULL;
   return node;
 }
 
-void heap_node_destroy(heap_node_t *node) {
-  // @TODO how to free internal obj? dtor pointer?
+void heap_node_destroy(runtime_t *rt, heap_node_t *node) {
+  if (node->hv.dtor_ptr != NULL) {
+    args_t args;
+    args._stack = &rt->dt->storage[AT_LOCAL];
+    args._rawData = node->hv.ptr; // 'this' object
+
+    node->hv.dtor_ptr(rt, &args);
+  }
+
   free(node);
 }
 
@@ -27,18 +36,18 @@ heap_t *heap_create() {
   return heap;
 }
 
-void heap_destroy(heap_t *heap) {
+void heap_destroy(runtime_t *rt, heap_t *heap) {
   while (heap->head) {
     heap_node_t *tmp = heap->head;
     heap->head = tmp->prev;
 
-    heap_node_destroy(tmp);
+    heap_node_destroy(rt, tmp);
 
     --heap->size;
   }
 }
 
-heap_value_t *heap_alloc(heap_t *heap) {
+heap_value_t *heap_alloc(runtime_t *rt, heap_t *heap) {
   heap_lock();
 
   heap_node_t *node = heap_node_create();
@@ -58,7 +67,7 @@ heap_value_t *heap_alloc(heap_t *heap) {
   return &heap->head->hv;
 }
 
-void heap_sweep(heap_t *heap) {
+void heap_sweep(runtime_t *rt, heap_t *heap) {
   heap_node_t *last = heap->head;
 
   while (last) {
@@ -88,7 +97,7 @@ void heap_sweep(heap_t *heap) {
       heap->head = prev;
     }
 
-    heap_node_destroy(last);
+    heap_node_destroy(rt, last);
     last = prev;
 
     --heap->size;

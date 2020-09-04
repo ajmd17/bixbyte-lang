@@ -13,6 +13,7 @@ namespace bcparse {
   class AstDirective;
   class AstStringLiteral;
   class AstIntegerLiteral;
+  class AstFloatLiteral;
   class AstVariable;
   class AstSymbol;
   class AstInterpolation;
@@ -44,6 +45,7 @@ namespace bcparse {
     Pointer<AstExpression> parseTerm();
     Pointer<AstStringLiteral> parseStringLiteral();
     Pointer<AstIntegerLiteral> parseIntegerLiteral();
+    Pointer<AstFloatLiteral> parseFloatLiteral();
     Pointer<AstVariable> parseVariable();
     Pointer<AstSymbol> parseSymbol();
     Pointer<AstDirective> parseDirective();

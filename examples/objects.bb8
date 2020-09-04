@@ -1,0 +1,10 @@
+@include "../lib/object.bb8"
+
+@object test {
+  @field "name" "turtle"
+  @field "dob" "1997/02/15"
+}
+
+push $r[0]
+call #{getObjectMember} $l[-1] "name"
+print $r[0]

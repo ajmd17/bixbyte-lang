@@ -105,6 +105,19 @@ namespace bcparse {
     Flags m_flags;
   };
 
+  class Op_Call : public Buildable {
+  public:
+    Op_Call(const ObjLoc &objLoc);
+    Op_Call(const Op_Call &other) = delete;
+    virtual ~Op_Call() = default;
+
+    virtual void accept(BytecodeStream *bs) override;
+    virtual void debugPrint(BytecodeStream *bs, Formatter *f) override;
+
+  private:
+    ObjLoc m_objLoc;
+  };
+
   class Op_Cmp : public Buildable {
   public:
     enum class Flags {

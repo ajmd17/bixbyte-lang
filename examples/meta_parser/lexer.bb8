@@ -1,0 +1,19 @@
+@include "../../lib/object.bb8"
+
+@object source_stream {
+  @field "file_ptr" nil
+  @field "filename" nil
+  @field "offset" 0
+}
+
+push $r[0] // source_stream
+
+@object lexer {
+  @field "source_stream" nil
+}
+
+push $r[0] // lexer
+
+call #{setObjectMember} $l[-1] "source_stream" $l[-2]
+pop // source_stream
+pop // lexer

@@ -38,6 +38,7 @@ namespace bcparse {
         setInterpValue(value.get(), false);
         setInterpValue(getInterpValue(), false);
 
+        // extract value of variables/symbols
         if (auto asVar = dynamic_cast<AstVariable*>(m_container.value)) {
           setInterpValue(asVar->getValueOf(), false);
         } else if (auto asSym = dynamic_cast<AstSymbol*>(m_container.value)) {

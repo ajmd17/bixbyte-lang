@@ -6,12 +6,12 @@ template <typename T>
 using Pointer = std::shared_ptr<T>;
 
 namespace bcparse {
-  class AstIntegerLiteral : public AstExpression {
+  class AstFloatLiteral : public AstExpression {
   public:
-    AstIntegerLiteral(int64_t value, const SourceLocation &location);
-    virtual ~AstIntegerLiteral() = default;
+    AstFloatLiteral(double value, const SourceLocation &location);
+    virtual ~AstFloatLiteral() = default;
 
-    const int64_t getValue() const { return m_value; }
+    const double getValue() const { return m_value; }
 
     virtual void visit(AstVisitor *visitor, Module *mod) override;
     virtual void build(AstVisitor *visitor, Module *mod, BytecodeChunk *out) override;
@@ -22,10 +22,10 @@ namespace bcparse {
     virtual Value getRuntimeValue() const override;
 
   private:
-    int64_t m_value;
+    double m_value;
 
-    inline Pointer<AstIntegerLiteral> CloneImpl() const {
-      return Pointer<AstIntegerLiteral>(new AstIntegerLiteral(
+    inline Pointer<AstFloatLiteral> CloneImpl() const {
+      return Pointer<AstFloatLiteral>(new AstFloatLiteral(
         m_value,
         m_location
       ));

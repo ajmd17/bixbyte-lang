@@ -5,6 +5,8 @@
 #include <algorithm>
 
 namespace bcparse {
+  const int DataStorage::STATIC_DATA_OFFSET = 128;
+
   DataStorage::DataStorage() {
   }
 
@@ -25,12 +27,13 @@ namespace bcparse {
       auto it = std::find(m_values.begin(), m_values.end(), value);
 
       if (it != m_values.end()) {
-        return it - m_values.begin();
+        return STATIC_DATA_OFFSET + (it - m_values.begin());
       }
     }
 
     // add new value
-    size_t id = m_values.size();
+    size_t id = STATIC_DATA_OFFSET + m_values.size();
+
     m_values.push_back(value);
 
     return id;
@@ -44,7 +47,7 @@ namespace bcparse {
 
       // @TODO assertion that it does not exceed max size
       m_opLoads.push_back(std::unique_ptr<Op_Load>(new Op_Load(
-        ObjLoc(i, ObjLoc::DataStoreLocation::StaticDataStore),
+        ObjLoc(STATIC_DATA_OFFSET + i, ObjLoc::DataStoreLocation::StaticDataStore),
         m_values[i]
       )));
 

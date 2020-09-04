@@ -1,0 +1,18 @@
+@macro object {
+  @var #{_0}
+
+  call #{createObject}
+  push $r[0]
+
+  @macro field {
+    call #{setObjectMember} $l[-1] #{_0} #{_1}
+  }
+
+  #{body}
+
+  mov $r[0] $l[-1]
+
+  @set #{_0} #{$r[0]}
+
+  pop
+}

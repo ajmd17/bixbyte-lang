@@ -15,7 +15,7 @@ runtime_t *runtime_create() {
 void runtime_destroy(runtime_t *r) {
   rcmap_destroy(r->rc);
   datatable_destroy(r, r->dt);
-  heap_destroy(r->heap);
+  heap_destroy(r, r->heap);
   free(r);
 }
 
@@ -23,7 +23,7 @@ void runtime_gc(runtime_t *r) {
   heap_lock();
 
   datatable_mark(r->dt);
-  heap_sweep(r->heap);
+  heap_sweep(r, r->heap);
 
   heap_unlock();
 }

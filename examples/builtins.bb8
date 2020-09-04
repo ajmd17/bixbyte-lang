@@ -1,0 +1,23 @@
+@include "../lib/function.bb8"
+call #{fopen} "./hello.txt" "w+"
+// print $s[128]
+
+push $r[0] // file
+
+call #{fwrite} $l[-1] 5 "hello"
+call #{fclose} $l[-1]
+
+call #{fopen} "./hello.txt" "r"
+
+mov $l[-1] $r[0]
+call #{fread} $l[-1] 5
+push $r[0] // push string result
+
+
+call #{createObject}
+push $r[0]
+call #{setObjectMember} $l[-1] "test" 1234.5
+call #{getObjectMember} $l[-1] "testing"
+
+pop
+

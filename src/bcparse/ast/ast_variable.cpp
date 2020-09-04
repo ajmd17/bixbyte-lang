@@ -19,10 +19,6 @@ namespace bcparse {
   }
 
   void AstVariable::visit(AstVisitor *visitor, Module *mod) {
-    // if (!visitor->getCompilationUnit()->isVariableMode()) {
-    //   return;
-    // }
-
     if (auto ptr = visitor->getCompilationUnit()->getBoundGlobals().get(m_name)) {
       m_value = ptr;
 

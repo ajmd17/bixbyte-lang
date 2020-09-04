@@ -32,6 +32,8 @@ namespace bcparse {
     inline int getLocation() const { return m_location; }
     inline DataStoreLocation getDataStoreLocation() const { return m_dataStoreLocation; }
 
+    inline bool isRelative() const { return m_location < 0; }
+
     inline std::string toString() const {
       std::stringstream ss;
 

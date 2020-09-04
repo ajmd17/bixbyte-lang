@@ -1,0 +1,11 @@
+@macro while {
+__while_start:
+  cmp #{_0} 0
+  je #{__while_end}
+
+  #{body}
+
+  jmp #{__while_start}
+
+__while_end:
+}

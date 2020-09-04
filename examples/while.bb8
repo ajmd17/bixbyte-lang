@@ -1,0 +1,8 @@
+@include "../lib/while.bb8"
+
+mov $r[0] 100000
+
+@while $r[0] {
+  print $r[0]
+  sub $r[0] 1
+}

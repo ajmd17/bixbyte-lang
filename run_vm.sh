@@ -1,1 +1,1 @@
-./dist/vm/bin/vm ./.bin
+./dist/vm/bin/vm ./examples/meta_parser/lexer.bin

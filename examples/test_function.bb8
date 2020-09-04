@@ -12,7 +12,9 @@
     mov $r[0] 123
     @return $r[0]
 
-    @else {}
+    @else {
+
+    }
   }
 
 }

@@ -10,6 +10,8 @@
 
 namespace bcparse {
   class DataStorage : public Buildable {
+    static const int STATIC_DATA_OFFSET;
+
   public:
     DataStorage();
     DataStorage(const DataStorage &other);

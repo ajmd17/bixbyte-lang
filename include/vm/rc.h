@@ -28,7 +28,6 @@ typedef struct {
   rcentry_t *data;
 } rcmap_t;
 
-uint32_t hash6432shift(uint64_t key);
 uint32_t rcmap_hashInt(rcmap_t *map, rcmap_key_t key);
 
 rcmap_t *rcmap_create();

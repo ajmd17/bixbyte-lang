@@ -10,6 +10,7 @@
 #include <bcparse/ast/ast_code_body.hpp>
 #include <bcparse/ast/ast_string_literal.hpp>
 #include <bcparse/ast/ast_integer_literal.hpp>
+#include <bcparse/ast/ast_float_literal.hpp>
 #include <bcparse/ast/ast_data_location.hpp>
 #include <bcparse/ast/ast_variable.hpp>
 #include <bcparse/ast/ast_symbol.hpp>
@@ -21,6 +22,7 @@
 #include <bcparse/ast/ast_pop_statement.hpp>
 #include <bcparse/ast/ast_binop_statement.hpp>
 #include <bcparse/ast/ast_print_statement.hpp>
+#include <bcparse/ast/ast_call_statement.hpp>
 
 #include <common/my_assert.hpp>
 
@@ -225,7 +227,6 @@ namespace bcparse {
       } else {
         expr = parseSymbol();
       }
-      // expr = parseVariable();
     } else if (match(Token::TK_OPEN_PARENTH)) {
       // expr = parseParentheses();
     } else if (match(Token::TK_OPEN_BRACKET)) {
@@ -233,7 +234,7 @@ namespace bcparse {
     } else if (match(Token::TK_INTEGER)) {
       expr = parseIntegerLiteral();
     } else if (match(Token::TK_FLOAT)) {
-      // expr = parseFloatLiteral();
+      expr = parseFloatLiteral();
     } else if (match(Token::TK_STRING)) {
       expr = parseStringLiteral();
     } else if (match(Token::TK_INTERPOLATION)) {
@@ -295,6 +296,21 @@ namespace bcparse {
       ss >> value;
 
       return Pointer<AstIntegerLiteral>(new AstIntegerLiteral(
+        value,
+        token.getLocation()
+      ));
+    }
+
+    return nullptr;
+  }
+
+  Pointer<AstFloatLiteral> Parser::parseFloatLiteral() {
+    if (Token token = expect(Token::TK_FLOAT, true)) {
+      std::istringstream ss(token.getValue());
+      double value;
+      ss >> value;
+
+      return Pointer<AstFloatLiteral>(new AstFloatLiteral(
         value,
         token.getLocation()
       ));
@@ -491,6 +507,23 @@ namespace bcparse {
           token.getValue(),
           left,
           right,
+          token.getLocation()
+        ));
+      } else if (token.getValue() == "call") {
+        std::vector<Pointer<AstExpression>> arguments;
+
+        while (m_tokenStream->hasNext() &&
+          !match(Token::TK_NEWLINE) &&
+          !match(Token::TK_OPEN_BRACE)) {
+          if (auto expr = parseTerm()) {
+            arguments.emplace_back(expr);
+          } else {
+            break;
+          }
+        }
+
+        return Pointer<AstCallStatement>(new AstCallStatement(
+          arguments,
           token.getLocation()
         ));
       } else if (token.getValue() == "print") {
